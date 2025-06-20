@@ -15,7 +15,10 @@ from dotenv import load_dotenv
 import os
 
 # Load environment variables from .env file
-load_dotenv()
+
+
+youtube_api_key = st.secrets["YOUTUBE_API_KEY"]
+grooq_api_key = st.secrets["GROOQ_API_KEY"]
 
 # Set page config as the first Streamlit command
 st.set_page_config(page_title="YouTube Sentiment Analyzer", layout="wide")
