@@ -1,0 +1,11 @@
+streamlit==1.39.0
+pandas==2.2.3
+numpy==2.1.1
+matplotlib==3.9.2
+seaborn==0.13.2
+wordcloud==1.9.3
+google-api-python-client==2.149.0
+vaderSentiment==3.3.2
+langchain==0.3.3
+langchain-groq==0.2.0
+python-dotenv==1.0.1
