@@ -228,7 +228,7 @@ def main():
 
     # Sidebar
     with st.sidebar:
-        st.image("https://img.youtube.com/vi/dQw4w9WgXcQ/maxresdefault.jpg", use_container_width=True)
+        st.image("youtube-logo-png-46020.png", use_container_width=True)
         st.header("🎬 YouTube Analyzer")
         page = st.selectbox("Navigate", ["Home", "Analysis", "CommentBot", "About"])
 
