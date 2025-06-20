@@ -292,7 +292,7 @@ def main():
                 st.session_state.user_query = st.text_input("Ask anything about the comments:", value=st.session_state.user_query)
                 if st.button("Ask CommentBot", key="commentbot_button"):
                     with st.spinner("⏳ Processing your question..."):
-                        st.session_state.bot_response = qa_bot_response_langchain(st.session_state.user_query, st.session_state.comments, groq_api_key)
+                        st.session_state.bot_response = qa_bot_response_langchain(st.session_state.user_query, st.session_state.comments, grooq_api_key)
                 if st.session_state.bot_response:
                     st.markdown(f"**Bot Answer:** {st.session_state.bot_response}")
         else:
