@@ -11,14 +11,6 @@ from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 from langchain_groq import ChatGroq
-from dotenv import load_dotenv
-import os
-
-# Load environment variables from .env file
-
-
-youtube_api_key = st.secrets["YOUTUBE_API_KEY"]
-grooq_api_key = st.secrets["GROOQ_API_KEY"]
 
 # Set page config as the first Streamlit command
 st.set_page_config(page_title="YouTube Sentiment Analyzer", layout="wide")
@@ -133,15 +125,17 @@ def get_comments(video_id, api_key, max_comments=100):
             pageToken=next_page_token,
             textFormat="plainText"
         )
-        response = request.execute()
-
-        for item in response["items"]:
-            comment = item["snippet"]["topLevelComment"]["snippet"]["textDisplay"]
-            comments.append(comment)
-
-        if "nextPageToken" in response:
-            next_page_token = response["nextPageToken"]
-        else:
+        try:
+            response = request.execute()
+            for item in response["items"]:
+                comment = item["snippet"]["topLevelComment"]["snippet"]["textDisplay"]
+                comments.append(comment)
+            if "nextPageToken" in response:
+                next_page_token = response["nextPageToken"]
+            else:
+                break
+        except Exception as e:
+            st.warning(f"API limit reached or error: {str(e)}")
             break
 
     return comments[:max_comments]
@@ -225,9 +219,13 @@ def main():
     if 'bot_response' not in st.session_state:
         st.session_state.bot_response = ""
 
-    # Load API keys from .env
-    youtube_api_key = os.getenv("YOUTUBE_API_KEY")
-    groq_api_key = os.getenv("GROQ_API_KEY")
+    # Load API keys from st.secrets
+    try:
+        youtube_api_key = st.secrets["YOUTUBE_API_KEY"]
+        grooq_api_key = st.secrets["GROOQ_API_KEY"]
+    except KeyError:
+        st.error("Missing API keys. Please configure YOUTUBE_API_KEY and GROOQ_API_KEY in Streamlit secrets.")
+        st.stop()
 
     # Sidebar
     with st.sidebar:
@@ -240,9 +238,6 @@ def main():
             youtube_url = st.text_input("YouTube Video URL")
             max_comments = st.slider("Number of Comments to Analyze", min_value=50, max_value=500, value=200, step=50)
             if st.button("Analyze Now", key="analyze_button"):
-                if not (youtube_api_key and groq_api_key):
-                    st.error("Missing API keys. Please ensure YOUTUBE_API_KEY and GROQ_API_KEY are set in the .env file.")
-                    return
                 if not youtube_url:
                     st.error("Please provide a valid YouTube URL.")
                     return
@@ -260,7 +255,7 @@ def main():
 
                     st.session_state.df = pd.DataFrame(st.session_state.comments, columns=["Comment"])
                     st.session_state.df['Sentiment'] = st.session_state.df['Comment'].apply(predict_sentiment)
-                    st.session_state.summary = summarize_comments_langchain(st.session_state.comments, groq_api_key)
+                    st.session_state.summary = summarize_comments_langchain(st.session_state.comments, grooq_api_key)
 
     # Main Content
     if page == "Home":
@@ -296,9 +291,6 @@ def main():
             with st.container():
                 st.session_state.user_query = st.text_input("Ask anything about the comments:", value=st.session_state.user_query)
                 if st.button("Ask CommentBot", key="commentbot_button"):
-                    if not groq_api_key:
-                        st.error("Missing GROQ API key. Please ensure GROQ_API_KEY is set in the .env file.")
-                        return
                     with st.spinner("⏳ Processing your question..."):
                         st.session_state.bot_response = qa_bot_response_langchain(st.session_state.user_query, st.session_state.comments, groq_api_key)
                 if st.session_state.bot_response:
@@ -319,7 +311,7 @@ def main():
 
             Built by leveraging the YouTube Data API and advanced NLP, this tool is designed for content creators, marketers, and analysts to gain deeper insights into audience feedback.
 
-            **Note**: Ensure you have valid YouTube and GROQ API keys set in the .env file. For API pricing, visit [xAI API](https://x.ai/api).
+            **Note**: Ensure you have valid YouTube and GROQ API keys set in the Streamlit secrets. For API pricing, visit [xAI API](https://x.ai/api).
             """
         )
 
