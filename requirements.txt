@@ -1,21 +1,23 @@
-# Core Libraries
+# Streamlit & UI
 streamlit==1.44.0
-pandas==2.3.0
-numpy==2.3.0
 matplotlib==3.10.3
 seaborn==0.13.2
 wordcloud==1.9.4
 
+# Data Handling
+pandas==2.3.0
+numpy==2.3.0
+python-dotenv==1.1.0
+
 # YouTube API
 google-api-python-client==2.166.0
 
-# Hugging Face Transformers for multilingual sentiment
+# Sentiment Analysis
+vaderSentiment==3.3.2
 transformers==4.41.2
-torch>=2.0.0  # Required by transformers (automatically pulls CPU or CUDA version)
+torch==2.3.0+cpu
+--extra-index-url https://download.pytorch.org/whl/cpu
 
-# LangChain + GROQ
+# LangChain + LLM
 langchain==0.3.25
 langchain_groq==0.3.2
-
-# Environment Variable Management
-python-dotenv==1.1.0
