@@ -215,12 +215,11 @@ def main():
                         return
                     st.session_state.df = pd.DataFrame(st.session_state.comments, columns=["Comment"])
                    if model_choice == "Fast (XLM-R)":
-    st.session_state.df['Sentiment'] = st.session_state.df['Comment'].apply(predict_sentiment)
-    st.success("✅ Analysis completed using XLM-RoBERTa model.")
-else:
-    st.session_state.df['Sentiment'] = st.session_state.df['Comment'].apply(
-        lambda c: predict_sentiment_llm(c, grooq_api_key)
-    )
+                       st.session_state.df['Sentiment'] = st.session_state.df['Comment'].apply(predict_sentiment)
+                       st.success("✅ Analysis completed using XLM-RoBERTa model.")
+                   else:
+                       st.session_state.df['Sentiment'] = st.session_state.df['Comment'].apply(
+                       lambda c: predict_sentiment_llm(c, grooq_api_key))
     st.success("✅ Analysis completed using LLM-based multilingual model.")
                     st.session_state.summary = summarize_comments_langchain(st.session_state.comments, grooq_api_key)
 
