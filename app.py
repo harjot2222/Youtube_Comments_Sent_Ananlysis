@@ -1,20 +1,16 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
 import re
 import string
 import matplotlib.pyplot as plt
 import seaborn as sns
 from wordcloud import WordCloud
 from googleapiclient.discovery import build
-from transformers import AutoTokenizer, AutoModelForSequenceClassification
-from scipy.special import softmax
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 from langchain_groq import ChatGroq
 
 st.set_page_config(page_title="YouTube Sentiment Analyzer", layout="wide")
-
 
 # --------------------- Styling --------------------- #
 st.markdown("""
@@ -44,30 +40,16 @@ h2 { color: #2c3e50; font-size: 1.8rem; margin-top: 1.5rem; }
 </style>
 """, unsafe_allow_html=True)
 
-
-
-
-
 # --------------------- Utilities --------------------- #
 def clean_text(text):
     text = text.lower()
-    text = re.sub('<.*?>', '', text)
+    text = re.sub(r'[<.*?>', '', text)
     text = text.translate(str.maketrans('', '', string.punctuation))
     text = re.sub(r'\d+', '', text)
     return text.strip()
 
-
-def predict_sentiment(comment):
-    cleaned = clean_text(comment)
-    inputs = tokenizer(cleaned, return_tensors="pt", truncation=True)
-    outputs = xlm_model(**inputs)
-    probs = softmax(outputs.logits.detach().numpy()[0])
-    sentiment_labels = ['Negative', 'Neutral', 'Positive']
-    return sentiment_labels[np.argmax(probs)]
-
-
 def predict_sentiment_llm(comment, groq_api_key):
-    model = ChatGroq(api_key=groq_api_key, model_name="llama-3.3-70b-versatile")
+    model = ChatGroq(api_key=groq_api_key, model_name="llama-3.1-70b-versatile")
     prompt = PromptTemplate.from_template("""
         You are a multilingual sentiment analyzer. Analyze the following YouTube comment and classify it as one of:
         - Positive
@@ -86,11 +68,9 @@ def predict_sentiment_llm(comment, groq_api_key):
     sentiment = response['text'].strip().capitalize()
     return sentiment if sentiment in ['Positive', 'Neutral', 'Negative'] else 'Neutral'
 
-
 def extract_video_id(link):
     match = re.search(r"(?:v=|\/)([a-zA-Z0-9_-]{11})", link)
     return match.group(1) if match else None
-
 
 @st.cache_data
 def get_comments(video_id, api_key, max_comments=100):
@@ -115,14 +95,16 @@ def get_comments(video_id, api_key, max_comments=100):
             break
     return comments[:max_comments]
 
-
 def visualize_sentiment(results_df):
     st.subheader("📊 Sentiment Distribution")
-    sentiment_counts = results_df['Sentiment'].value_counts()
-    fig, ax = plt.subplots(figsize=(8, 5))
-    sns.barplot(x=sentiment_counts.index, y=sentiment_counts.values, palette='Set2', ax=ax)
-    ax.set_ylabel("Number of Comments")
-    st.pyplot(fig)
+    if 'Sentiment' in results_df.columns:
+        sentiment_counts = results_df['Sentiment'].value_counts()
+        fig, ax = plt.subplots(figsize=(8, 5))
+        sns.barplot(x=sentiment_counts.index, y=sentiment_counts.values, palette='Set2', ax=ax)
+        ax.set_ylabel("Number of Comments")
+        st.pyplot(fig)
+    else:
+        st.info("ℹ️ Sentiment analysis was not performed.")
 
     st.subheader("☁️ WordCloud of Comments")
     all_comments = " ".join(results_df["Comment"])
@@ -132,10 +114,9 @@ def visualize_sentiment(results_df):
     ax_wc.axis('off')
     st.pyplot(fig_wc)
 
-
 @st.cache_data
 def summarize_comments_langchain(comments, groq_api_key):
-    model = ChatGroq(api_key=groq_api_key, model_name="llama-3.3-70b-versatile")
+    model = ChatGroq(api_key=groq_api_key, model_name="llama-3.1-70b-versatile")
     prompt = PromptTemplate.from_template("""
         Summarize the following YouTube comments. Provide a short summary, highlight common themes, user concerns, and what users appreciated or disliked. Give actionable insights for improving future videos.
 
@@ -146,9 +127,8 @@ def summarize_comments_langchain(comments, groq_api_key):
     response = chain.invoke({"comments": "\n".join(comments[:100])})
     return response['text'].strip()
 
-
 def qa_bot_response_langchain(user_query, comments, groq_api_key):
-    model = ChatGroq(api_key=groq_api_key, model_name="llama-3.3-70b-versatile")
+    model = ChatGroq(api_key=groq_api_key, model_name="llama-3.1-70b-versatile")
     prompt = PromptTemplate.from_template("""
         You are a helpful assistant analyzing YouTube comments. Use the following comments to answer the user's question:
 
@@ -163,7 +143,6 @@ def qa_bot_response_langchain(user_query, comments, groq_api_key):
     chain = LLMChain(llm=model, prompt=prompt)
     response = chain.invoke({"comments": "\n".join(comments[:100]), "query": user_query})
     return response['text'].strip()
-
 
 # --------------------- Main App --------------------- #
 def main():
@@ -180,9 +159,9 @@ def main():
 
     try:
         youtube_api_key = st.secrets["YOUTUBE_API_KEY"]
-        groq_api_key = st.secrets["GROOQ_API_KEY"]
+        groq_api_key = st.secrets["GROQ_API_KEY"]
     except KeyError:
-        st.error("❌ Missing API keys. Please configure YOUTUBE_API_KEY and GROOQ_API_KEY in Streamlit secrets.")
+        st.error("❌ Missing API keys. Please configure YOUTUBE_API_KEY and GROQ_API_KEY in Streamlit secrets.")
         st.stop()
 
     with st.sidebar:
@@ -194,7 +173,7 @@ def main():
             st.subheader("🔧 Analysis Settings")
             youtube_url = st.text_input("YouTube Video URL")
             max_comments = st.slider("Number of Comments", 50, 500, 200, step=50)
-            model_choice = st.radio("Choose Sentiment Model", ["Fast (XLM-R)", "Context-Aware (LLM via GROQ)"])
+            multilingual_toggle = st.toggle("Enable Multilingual Sentiment Analysis (Grok)")
 
             if st.button("Analyze Now"):
                 if not youtube_url:
@@ -211,19 +190,18 @@ def main():
                         return
                     st.session_state.df = pd.DataFrame(st.session_state.comments, columns=["Comment"])
 
-                    if model_choice == "Fast (XLM-R)":
-                        st.session_state.df['Sentiment'] = st.session_state.df['Comment'].apply(predict_sentiment)
-                        st.success("✅ Analysis completed with XLM-RoBERTa.")
-                    else:
+                    if multilingual_toggle:
                         st.session_state.df['Sentiment'] = st.session_state.df['Comment'].apply(
                             lambda c: predict_sentiment_llm(c, groq_api_key))
-                        st.success("✅ Analysis completed with LLM.")
+                        st.success("✅ Analysis completed with Grok (Multilingual).")
+                    else:
+                        st.success("✅ Comments fetched. Sentiment analysis skipped.")
 
                     st.session_state.summary = summarize_comments_langchain(st.session_state.comments, groq_api_key)
 
     if page == "Home":
         st.title("🎯 YouTube Sentiment Analyzer")
-        st.markdown("Analyze multilingual YouTube comments using XLM-R or GROQ-powered LLM for deep insights!")
+        st.markdown("Analyze YouTube comments with optional multilingual sentiment analysis powered by Grok!")
 
     elif page == "Analysis":
         st.title("📈 Analysis Results")
@@ -232,7 +210,7 @@ def main():
             st.subheader("📝 Summary")
             st.markdown(st.session_state.summary)
             st.subheader("📄 Sample Comments")
-            st.download_button("⬇️ Download CSV", st.session_state.df.to_csv(index=False), "yt_sentiments.csv", "text/csv")
+            st.download_button("⬇️ Download CSV", st.session_state.df.to_csv(index=False), "yt_comments.csv", "text/csv")
             st.dataframe(st.session_state.df.head(10), use_container_width=True)
         else:
             st.info("ℹ️ Run analysis from the sidebar.")
@@ -253,15 +231,13 @@ def main():
     elif page == "About":
         st.title("ℹ️ About")
         st.markdown("""
-        This app performs multilingual sentiment analysis on YouTube comments using:
-        - **XLM-R** (Fast, transformer-based)
-        - **GROQ + LLaMA 3** (Context-aware LLM)
+        This app analyzes YouTube comments with optional multilingual sentiment analysis using:
+        - **Grok + LLaMA 3** (Context-aware LLM via GROQ)
 
         Built with ❤️ using Streamlit, LangChain, and open-source models.
         """)
 
     st.markdown("<script>window.scrollTo(0, document.body.scrollHeight);</script>", unsafe_allow_html=True)
-
 
 if __name__ == '__main__':
     main()
