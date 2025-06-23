@@ -45,14 +45,7 @@ h2 { color: #2c3e50; font-size: 1.8rem; margin-top: 1.5rem; }
 """, unsafe_allow_html=True)
 
 
-# --------------------- Load Model --------------------- #
-@st.cache_resource
-def load_xlm_model():
-    tokenizer = AutoTokenizer.from_pretrained("cardiffnlp/twitter-xlm-roberta-base-sentiment")
-    model = AutoModelForSequenceClassification.from_pretrained("cardiffnlp/twitter-xlm-roberta-base-sentiment")
-    return tokenizer, model
 
-tokenizer, xlm_model = load_xlm_model()
 
 
 # --------------------- Utilities --------------------- #
