@@ -16,13 +16,11 @@ from langchain_groq import ChatGroq
 st.set_page_config(page_title="YouTube Sentiment Analyzer", layout="wide")
 
 
-
-
+# --------------------- Styling --------------------- #
 st.markdown("""
 <style>
 body { font-family: 'Arial', sans-serif; }
 .stApp { background-color: #f4f6f9; }
-.css-1d391kg { background-color: #1e1e2f; color: #ffffff; }
 .stSidebar .stButton>button {
     background-color: #4CAF50; color: white; border-radius: 8px;
     width: 100%; padding: 10px; font-weight: bold;
@@ -46,13 +44,25 @@ h2 { color: #2c3e50; font-size: 1.8rem; margin-top: 1.5rem; }
 </style>
 """, unsafe_allow_html=True)
 
+
+# --------------------- Load Model --------------------- #
+@st.cache_resource
+def load_xlm_model():
+    tokenizer = AutoTokenizer.from_pretrained("cardiffnlp/twitter-xlm-roberta-base-sentiment")
+    model = AutoModelForSequenceClassification.from_pretrained("cardiffnlp/twitter-xlm-roberta-base-sentiment")
+    return tokenizer, model
+
+tokenizer, xlm_model = load_xlm_model()
+
+
+# --------------------- Utilities --------------------- #
 def clean_text(text):
     text = text.lower()
     text = re.sub('<.*?>', '', text)
     text = text.translate(str.maketrans('', '', string.punctuation))
     text = re.sub(r'\d+', '', text)
-    text = text.strip()
-    return text
+    return text.strip()
+
 
 def predict_sentiment(comment):
     cleaned = clean_text(comment)
@@ -61,6 +71,7 @@ def predict_sentiment(comment):
     probs = softmax(outputs.logits.detach().numpy()[0])
     sentiment_labels = ['Negative', 'Neutral', 'Positive']
     return sentiment_labels[np.argmax(probs)]
+
 
 def predict_sentiment_llm(comment, groq_api_key):
     model = ChatGroq(api_key=groq_api_key, model_name="llama-3.3-70b-versatile")
@@ -80,15 +91,13 @@ def predict_sentiment_llm(comment, groq_api_key):
     chain = LLMChain(llm=model, prompt=prompt)
     response = chain.invoke({"comment": comment})
     sentiment = response['text'].strip().capitalize()
-
-    if sentiment not in ['Positive', 'Negative', 'Neutral']:
-        sentiment = "Neutral"
-    return sentiment
+    return sentiment if sentiment in ['Positive', 'Neutral', 'Negative'] else 'Neutral'
 
 
 def extract_video_id(link):
     match = re.search(r"(?:v=|\/)([a-zA-Z0-9_-]{11})", link)
     return match.group(1) if match else None
+
 
 @st.cache_data
 def get_comments(video_id, api_key, max_comments=100):
@@ -105,56 +114,49 @@ def get_comments(video_id, api_key, max_comments=100):
             for item in response["items"]:
                 comment = item["snippet"]["topLevelComment"]["snippet"]["textDisplay"]
                 comments.append(comment)
-            if "nextPageToken" in response:
-                next_page_token = response["nextPageToken"]
-            else:
+            next_page_token = response.get("nextPageToken", None)
+            if not next_page_token:
                 break
         except Exception as e:
-            st.warning(f"API limit reached or error: {str(e)}")
+            st.warning(f"API Error: {str(e)}")
             break
     return comments[:max_comments]
 
-def visualize_sentiment(results_df):
-    if results_df is None or 'Sentiment' not in results_df.columns:
-        st.error("No sentiment data available. Please run the analysis first.")
-        return
-    with st.container():
-        st.subheader("\U0001F4CA Sentiment Distribution")
-        sns.set_style("whitegrid")
-        sentiment_counts = results_df['Sentiment'].value_counts()
-        fig, ax = plt.subplots(figsize=(8, 5))
-        sns.barplot(x=sentiment_counts.index, y=sentiment_counts.values, palette='Set2', ax=ax)
-        ax.set_ylabel("Number of Comments")
-        ax.set_title("Sentiment Analysis Results")
-        st.pyplot(fig)
 
-        st.subheader("\u2601\ufe0f WordCloud of Comments")
-        all_comments = " ".join(results_df["Comment"])
-        wordcloud = WordCloud(width=800, height=400, background_color='white').generate(all_comments)
-        fig_wc, ax_wc = plt.subplots(figsize=(10, 5))
-        ax_wc.imshow(wordcloud, interpolation='bilinear')
-        ax_wc.axis('off')
-        st.pyplot(fig_wc)
+def visualize_sentiment(results_df):
+    st.subheader("📊 Sentiment Distribution")
+    sentiment_counts = results_df['Sentiment'].value_counts()
+    fig, ax = plt.subplots(figsize=(8, 5))
+    sns.barplot(x=sentiment_counts.index, y=sentiment_counts.values, palette='Set2', ax=ax)
+    ax.set_ylabel("Number of Comments")
+    st.pyplot(fig)
+
+    st.subheader("☁️ WordCloud of Comments")
+    all_comments = " ".join(results_df["Comment"])
+    wordcloud = WordCloud(width=800, height=400, background_color='white').generate(all_comments)
+    fig_wc, ax_wc = plt.subplots(figsize=(10, 5))
+    ax_wc.imshow(wordcloud, interpolation='bilinear')
+    ax_wc.axis('off')
+    st.pyplot(fig_wc)
+
 
 @st.cache_data
 def summarize_comments_langchain(comments, groq_api_key):
     model = ChatGroq(api_key=groq_api_key, model_name="llama-3.3-70b-versatile")
-    prompt = PromptTemplate.from_template(
-        """
+    prompt = PromptTemplate.from_template("""
         Summarize the following YouTube comments. Provide a short summary, highlight common themes, user concerns, and what users appreciated or disliked. Give actionable insights for improving future videos.
 
         Comments:
         {comments}
-        """
-    )
+    """)
     chain = LLMChain(llm=model, prompt=prompt)
     response = chain.invoke({"comments": "\n".join(comments[:100])})
     return response['text'].strip()
 
+
 def qa_bot_response_langchain(user_query, comments, groq_api_key):
     model = ChatGroq(api_key=groq_api_key, model_name="llama-3.3-70b-versatile")
-    prompt = PromptTemplate.from_template(
-        """
+    prompt = PromptTemplate.from_template("""
         You are a helpful assistant analyzing YouTube comments. Use the following comments to answer the user's question:
 
         Comments:
@@ -164,12 +166,13 @@ def qa_bot_response_langchain(user_query, comments, groq_api_key):
         {query}
 
         Answer:
-        """
-    )
+    """)
     chain = LLMChain(llm=model, prompt=prompt)
     response = chain.invoke({"comments": "\n".join(comments[:100]), "query": user_query})
     return response['text'].strip()
 
+
+# --------------------- Main App --------------------- #
 def main():
     if 'df' not in st.session_state:
         st.session_state.df = None
@@ -184,91 +187,88 @@ def main():
 
     try:
         youtube_api_key = st.secrets["YOUTUBE_API_KEY"]
-        grooq_api_key = st.secrets["GROOQ_API_KEY"]
+        groq_api_key = st.secrets["GROOQ_API_KEY"]
     except KeyError:
-        st.error("Missing API keys. Please configure YOUTUBE_API_KEY and GROOQ_API_KEY in Streamlit secrets.")
+        st.error("❌ Missing API keys. Please configure YOUTUBE_API_KEY and GROOQ_API_KEY in Streamlit secrets.")
         st.stop()
 
     with st.sidebar:
         st.image("youtube-logo-png-46020.png", use_container_width=True)
-        st.header("\U0001F3AC YouTube Analyzer")
+        st.header("🎬 YouTube Analyzer")
         page = st.selectbox("Navigate", ["Home", "Analysis", "CommentBot", "About"])
 
         if page in ["Home", "Analysis", "CommentBot"]:
-            st.subheader("\U0001F511 Analysis Settings")
+            st.subheader("🔧 Analysis Settings")
             youtube_url = st.text_input("YouTube Video URL")
-            max_comments = st.slider("Number of Comments to Analyze", min_value=50, max_value=500, value=200, step=50)
-            model_choice = st.radio( "Choose Sentiment Analysis Model:",["Fast (XLM-R)", "Context-Aware (LLM via GROQ)"])
+            max_comments = st.slider("Number of Comments", 50, 500, 200, step=50)
+            model_choice = st.radio("Choose Sentiment Model", ["Fast (XLM-R)", "Context-Aware (LLM via GROQ)"])
 
-            if st.button("Analyze Now", key="analyze_button"):
+            if st.button("Analyze Now"):
                 if not youtube_url:
-                    st.error("Please provide a valid YouTube URL.")
+                    st.error("❌ Please enter a valid YouTube URL.")
                     return
-                with st.spinner("\u23F3 Fetching and Analyzing..."):
+                with st.spinner("⏳ Analyzing comments..."):
                     video_id = extract_video_id(youtube_url)
                     if not video_id:
-                        st.error("Invalid YouTube URL.")
+                        st.error("❌ Invalid YouTube URL.")
                         return
                     st.session_state.comments = get_comments(video_id, youtube_api_key, max_comments)
                     if not st.session_state.comments:
-                        st.warning("No comments fetched.")
+                        st.warning("⚠️ No comments fetched.")
                         return
                     st.session_state.df = pd.DataFrame(st.session_state.comments, columns=["Comment"])
-                   if model_choice == "Fast (XLM-R)":
-                       st.session_state.df['Sentiment'] = st.session_state.df['Comment'].apply(predict_sentiment)
-                       st.success("✅ Analysis completed using XLM-RoBERTa model.")
-                   else:
-                       st.session_state.df['Sentiment'] = st.session_state.df['Comment'].apply(
-                       lambda c: predict_sentiment_llm(c, grooq_api_key))
-    st.success("✅ Analysis completed using LLM-based multilingual model.")
-                    st.session_state.summary = summarize_comments_langchain(st.session_state.comments, grooq_api_key)
+
+                    if model_choice == "Fast (XLM-R)":
+                        st.session_state.df['Sentiment'] = st.session_state.df['Comment'].apply(predict_sentiment)
+                        st.success("✅ Analysis completed with XLM-RoBERTa.")
+                    else:
+                        st.session_state.df['Sentiment'] = st.session_state.df['Comment'].apply(
+                            lambda c: predict_sentiment_llm(c, groq_api_key))
+                        st.success("✅ Analysis completed with LLM.")
+
+                    st.session_state.summary = summarize_comments_langchain(st.session_state.comments, groq_api_key)
 
     if page == "Home":
-        st.title("\U0001F3A5 YouTube Sentiment Analyzer Dashboard")
-        st.markdown("""
-            Welcome to the **YouTube Sentiment Analyzer**! This tool helps you analyze comments from YouTube videos to understand viewer sentiments, generate insights, and interact with a CommentBot for detailed queries.
-        """)
+        st.title("🎯 YouTube Sentiment Analyzer")
+        st.markdown("Analyze multilingual YouTube comments using XLM-R or GROQ-powered LLM for deep insights!")
 
     elif page == "Analysis":
-        st.title("\U0001F4C8 Analysis Results")
-        if st.session_state.df is not None and 'Sentiment' in st.session_state.df.columns:
+        st.title("📈 Analysis Results")
+        if st.session_state.df is not None:
             visualize_sentiment(st.session_state.df)
-            st.subheader("\U0001F4DD Summarized Insights")
-            st.markdown(st.session_state.summary if st.session_state.summary else "No summary available.")
-            st.subheader("\U0001F4CB Comment Data")
-            st.download_button("\u2B07\ufe0f Download CSV", st.session_state.df.to_csv(index=False), "yt_sentiments.csv", "text/csv")
+            st.subheader("📝 Summary")
+            st.markdown(st.session_state.summary)
+            st.subheader("📄 Sample Comments")
+            st.download_button("⬇️ Download CSV", st.session_state.df.to_csv(index=False), "yt_sentiments.csv", "text/csv")
             st.dataframe(st.session_state.df.head(10), use_container_width=True)
         else:
-            st.info("Please run the analysis from the sidebar to view results.")
+            st.info("ℹ️ Run analysis from the sidebar.")
 
     elif page == "CommentBot":
-        st.title("\U0001F4AC CommentBot")
+        st.title("💬 CommentBot")
         if st.session_state.comments:
-            st.session_state.user_query = st.text_input("Ask anything about the comments:", value=st.session_state.user_query)
-            if st.button("Ask CommentBot", key="commentbot_button"):
-                with st.spinner("\u23F3 Processing your question..."):
+            st.session_state.user_query = st.text_input("Ask something about the comments:", value=st.session_state.user_query)
+            if st.button("Ask CommentBot"):
+                with st.spinner("💡 Thinking..."):
                     st.session_state.bot_response = qa_bot_response_langchain(
-                        st.session_state.user_query, st.session_state.comments, grooq_api_key)
+                        st.session_state.user_query, st.session_state.comments, groq_api_key)
             if st.session_state.bot_response:
                 st.markdown(f"**Bot Answer:** {st.session_state.bot_response}")
         else:
-            st.info("Please run the analysis from the sidebar to enable CommentBot.")
+            st.info("⚠️ Analyze a video first to ask the bot.")
 
     elif page == "About":
-        st.title("\u2139\ufe0f About")
+        st.title("ℹ️ About")
         st.markdown("""
-        **YouTube Sentiment Analyzer** is a professional tool built with Streamlit, multilingual transformer models, and LangChain + GROQ.
+        This app performs multilingual sentiment analysis on YouTube comments using:
+        - **XLM-R** (Fast, transformer-based)
+        - **GROQ + LLaMA 3** (Context-aware LLM)
 
-        - **Sentiment Analysis**: Supports multilingual comment classification.
-        - **Visual Insights**: Bar chart and word cloud visualization.
-        - **AI-Powered Summary & Q&A**: Get high-level summaries and answers using LLMs.
-
-        Built for creators, marketers, and analysts to gain audience insights.
+        Built with ❤️ using Streamlit, LangChain, and open-source models.
         """)
 
-    st.markdown("""
-        <script> window.scrollTo(0, document.body.scrollHeight); </script>
-    """, unsafe_allow_html=True)
+    st.markdown("<script>window.scrollTo(0, document.body.scrollHeight);</script>", unsafe_allow_html=True)
+
 
 if __name__ == '__main__':
     main()
