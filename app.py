@@ -9,6 +9,7 @@ from googleapiclient.discovery import build
 from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 from langchain_groq import ChatGroq
+from groq import AuthenticationError
 
 st.set_page_config(page_title="YouTube Sentiment Analyzer", layout="wide")
 
@@ -36,37 +37,44 @@ h2 { color: #2c3e50; font-size: 1.8rem; margin-top: 1.5rem; }
     background-color: #007bff; color: white;
     border-radius: 8px; padding: 10px 20px;
 }
-.stDownloadButton>button:hover { background-color: #0056b3; }
+.stDownloadButton > button:hover { background-color: #0056b3; }
 </style>
 """, unsafe_allow_html=True)
 
 # --------------------- Utilities --------------------- #
 def clean_text(text):
     text = text.lower()
-    text = re.sub(r'[<.*?>', '', text)
+    text = re.sub(r'<.*?>', '', text)
     text = text.translate(str.maketrans('', '', string.punctuation))
     text = re.sub(r'\d+', '', text)
     return text.strip()
 
 def predict_sentiment_llm(comment, groq_api_key):
-    model = ChatGroq(api_key=groq_api_key, model_name="llama-3.1-70b-versatile")
-    prompt = PromptTemplate.from_template("""
-        You are a multilingual sentiment analyzer. Analyze the following YouTube comment and classify it as one of:
-        - Positive
-        - Neutral
-        - Negative
+    try:
+        model = ChatGroq(api_key=groq_api_key, model_name="llama-3.1-70b-versatile")
+        prompt = PromptTemplate.from_template("""
+            You are a multilingual sentiment analyzer. Analyze the following YouTube comment and classify it as one of:
+            - Positive
+            - Neutral
+            - Negative
 
-        Only return one word: Positive, Neutral, or Negative.
+            Only return one word: Positive, Neutral, or Negative.
 
-        Comment:
-        {comment}
+            Comment:
+            {comment}
 
-        Sentiment:
-    """)
-    chain = LLMChain(llm=model, prompt=prompt)
-    response = chain.invoke({"comment": comment})
-    sentiment = response['text'].strip().capitalize()
-    return sentiment if sentiment in ['Positive', 'Neutral', 'Negative'] else 'Neutral'
+            Sentiment:
+        """)
+        chain = LLMChain(llm=model, prompt=prompt)
+        response = chain.invoke({"comment": comment})
+        sentiment = response['text'].strip().capitalize()
+        return sentiment if sentiment in ['Positive', 'Neutral', 'Negative'] else 'Neutral'
+    except AuthenticationError:
+        st.error("❌ Invalid Groq API key. Please check your GROQ_API_KEY in Streamlit secrets.")
+        return 'Neutral'
+    except Exception as e:
+        st.warning(f"⚠️ Error in sentiment analysis: {str(e)}. Defaulting to Neutral.")
+        return 'Neutral'
 
 def extract_video_id(link):
     match = re.search(r"(?:v=|\/)([a-zA-Z0-9_-]{11})", link)
@@ -116,33 +124,43 @@ def visualize_sentiment(results_df):
 
 @st.cache_data
 def summarize_comments_langchain(comments, groq_api_key):
-    model = ChatGroq(api_key=groq_api_key, model_name="llama-3.1-70b-versatile")
-    prompt = PromptTemplate.from_template("""
-        Summarize the following YouTube comments. Provide a short summary, highlight common themes, user concerns, and what users appreciated or disliked. Give actionable insights for improving future videos.
+    try:
+        model = ChatGroq(api_key=groq_api_key, model_name="llama-3.1-70b-versatile")
+        prompt = PromptTemplate.from_template("""
+            Summarize the following YouTube comments. Provide a short summary, highlight common themes, user concerns, and what users appreciated or disliked. Give actionable insights for improving future videos.
 
-        Comments:
-        {comments}
-    """)
-    chain = LLMChain(llm=model, prompt=prompt)
-    response = chain.invoke({"comments": "\n".join(comments[:100])})
-    return response['text'].strip()
+            Comments:
+            {comments}
+        """)
+        chain = LLMChain(llm=model, prompt=prompt)
+        response = chain.invoke({"comments": "\n".join(comments[:100])})
+        return response['text'].strip()
+    except AuthenticationError:
+        return "❌ Summary unavailable due to invalid Groq API key."
+    except Exception as e:
+        return f"⚠️ Error in summarization: {str(e)}."
 
 def qa_bot_response_langchain(user_query, comments, groq_api_key):
-    model = ChatGroq(api_key=groq_api_key, model_name="llama-3.1-70b-versatile")
-    prompt = PromptTemplate.from_template("""
-        You are a helpful assistant analyzing YouTube comments. Use the following comments to answer the user's question:
+    try:
+        model = ChatGroq(api_key=groq_api_key, model_name="llama-3.1-70b-versatile")
+        prompt = PromptTemplate.from_template("""
+            You are a helpful assistant analyzing YouTube comments. Use the following comments to answer the user's question:
 
-        Comments:
-        {comments}
+            Comments:
+            {comments}
 
-        Question:
-        {query}
+            Question:
+            {query}
 
-        Answer:
-    """)
-    chain = LLMChain(llm=model, prompt=prompt)
-    response = chain.invoke({"comments": "\n".join(comments[:100]), "query": user_query})
-    return response['text'].strip()
+            Answer:
+        """)
+        chain = LLMChain(llm=model, prompt=prompt)
+        response = chain.invoke({"comments": "\n".join(comments[:100]), "query": user_query})
+        return response['text'].strip()
+    except AuthenticationError:
+        return "❌ Response unavailable due to invalid Groq API key."
+    except Exception as e:
+        return f"⚠️ Error in response: {str(e)}."
 
 # --------------------- Main App --------------------- #
 def main():
@@ -160,6 +178,10 @@ def main():
     try:
         youtube_api_key = st.secrets["YOUTUBE_API_KEY"]
         groq_api_key = st.secrets["GROQ_API_KEY"]
+        # Basic validation of Groq API key format (alphanumeric, typical length)
+        if not groq_api_key or not re.match(r'^[a-zA-Z0-9_-]{30,100}$', groq_api_key):
+            st.error("❌ Invalid Groq API key format in Streamlit secrets.")
+            st.stop()
     except KeyError:
         st.error("❌ Missing API keys. Please configure YOUTUBE_API_KEY and GROQ_API_KEY in Streamlit secrets.")
         st.stop()
