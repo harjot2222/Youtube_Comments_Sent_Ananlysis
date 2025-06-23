@@ -15,10 +15,17 @@ from langchain_groq import ChatGroq
 
 st.set_page_config(page_title="YouTube Sentiment Analyzer", layout="wide")
 
-@st.cache_resource
 def load_xlm_sentiment_model():
-    tokenizer = AutoTokenizer.from_pretrained("cardiffnlp/twitter-xlm-roberta-base-sentiment")
-    model = AutoModelForSequenceClassification.from_pretrained("cardiffnlp/twitter-xlm-roberta-base-sentiment")
+    tokenizer = AutoTokenizer.from_pretrained(
+        "cardiffnlp/twitter-xlm-roberta-base-sentiment",
+        cache_dir="./model_cache",  # optional: to avoid permission issues
+        force_download=True         # force re-download if broken
+    )
+    model = AutoModelForSequenceClassification.from_pretrained(
+        "cardiffnlp/twitter-xlm-roberta-base-sentiment",
+        cache_dir="./model_cache",
+        force_download=True
+    )
     return tokenizer, model
 
 tokenizer, xlm_model = load_xlm_sentiment_model()
