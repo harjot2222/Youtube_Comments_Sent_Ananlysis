@@ -71,7 +71,7 @@ def predict_sentiment_vader(comment):
 
 def predict_sentiment_llm(comment, groq_api_key):
     try:
-        model = ChatGroq(api_key=groq_api_key, model_name="llama-3.1-70b-versatile")
+        model = ChatGroq(api_key=groq_api_key, model_name="llama-3.3-70b-versatile")
         prompt = PromptTemplate.from_template("""
             You are a multilingual sentiment analyzer. Analyze the following YouTube comment and classify it as one of:
             - Positive
@@ -157,7 +157,7 @@ def visualize_sentiment(results_df):
 @st.cache_data
 def summarize_comments_langchain(comments, groq_api_key):
     try:
-        model = ChatGroq(api_key=groq_api_key, model_name="llama-3.1-70b-versatile")
+        model = ChatGroq(api_key=groq_api_key, model_name="llama-3.3-70b-versatile")
         prompt = PromptTemplate.from_template("""
             Summarize the following YouTube comments. Provide a short summary, highlight common themes, user concerns, and what users appreciated or disliked. Give actionable insights for improving future videos.
 
@@ -174,7 +174,7 @@ def summarize_comments_langchain(comments, groq_api_key):
 
 def qa_bot_response_langchain(user_query, comments, groq_api_key):
     try:
-        model = ChatGroq(api_key=groq_api_key, model_name="llama-3.1-70b-versatile")
+        model = ChatGroq(api_key=groq_api_key, model_name="llama-3.3-70b-versatile")
         prompt = PromptTemplate.from_template("""
             You are a helpful assistant analyzing YouTube comments. Use the following comments to answer the user's question:
 
