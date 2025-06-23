@@ -15,20 +15,8 @@ from langchain_groq import ChatGroq
 
 st.set_page_config(page_title="YouTube Sentiment Analyzer", layout="wide")
 
-def load_xlm_sentiment_model():
-    tokenizer = AutoTokenizer.from_pretrained(
-        "cardiffnlp/twitter-xlm-roberta-base-sentiment",
-        cache_dir="./model_cache",  # optional: to avoid permission issues
-        force_download=True         # force re-download if broken
-    )
-    model = AutoModelForSequenceClassification.from_pretrained(
-        "cardiffnlp/twitter-xlm-roberta-base-sentiment",
-        cache_dir="./model_cache",
-        force_download=True
-    )
-    return tokenizer, model
 
-tokenizer, xlm_model = load_xlm_sentiment_model()
+
 
 st.markdown("""
 <style>
@@ -73,6 +61,30 @@ def predict_sentiment(comment):
     probs = softmax(outputs.logits.detach().numpy()[0])
     sentiment_labels = ['Negative', 'Neutral', 'Positive']
     return sentiment_labels[np.argmax(probs)]
+
+def predict_sentiment_llm(comment, groq_api_key):
+    model = ChatGroq(api_key=groq_api_key, model_name="llama-3.3-70b-versatile")
+    prompt = PromptTemplate.from_template("""
+        You are a multilingual sentiment analyzer. Analyze the following YouTube comment and classify it as one of:
+        - Positive
+        - Neutral
+        - Negative
+
+        Only return one word: Positive, Neutral, or Negative.
+
+        Comment:
+        {comment}
+
+        Sentiment:
+    """)
+    chain = LLMChain(llm=model, prompt=prompt)
+    response = chain.invoke({"comment": comment})
+    sentiment = response['text'].strip().capitalize()
+
+    if sentiment not in ['Positive', 'Negative', 'Neutral']:
+        sentiment = "Neutral"
+    return sentiment
+
 
 def extract_video_id(link):
     match = re.search(r"(?:v=|\/)([a-zA-Z0-9_-]{11})", link)
@@ -186,6 +198,8 @@ def main():
             st.subheader("\U0001F511 Analysis Settings")
             youtube_url = st.text_input("YouTube Video URL")
             max_comments = st.slider("Number of Comments to Analyze", min_value=50, max_value=500, value=200, step=50)
+            model_choice = st.radio( "Choose Sentiment Analysis Model:",["Fast (XLM-R)", "Context-Aware (LLM via GROQ)"])
+
             if st.button("Analyze Now", key="analyze_button"):
                 if not youtube_url:
                     st.error("Please provide a valid YouTube URL.")
@@ -200,7 +214,14 @@ def main():
                         st.warning("No comments fetched.")
                         return
                     st.session_state.df = pd.DataFrame(st.session_state.comments, columns=["Comment"])
-                    st.session_state.df['Sentiment'] = st.session_state.df['Comment'].apply(predict_sentiment)
+                   if model_choice == "Fast (XLM-R)":
+    st.session_state.df['Sentiment'] = st.session_state.df['Comment'].apply(predict_sentiment)
+    st.success("✅ Analysis completed using XLM-RoBERTa model.")
+else:
+    st.session_state.df['Sentiment'] = st.session_state.df['Comment'].apply(
+        lambda c: predict_sentiment_llm(c, grooq_api_key)
+    )
+    st.success("✅ Analysis completed using LLM-based multilingual model.")
                     st.session_state.summary = summarize_comments_langchain(st.session_state.comments, grooq_api_key)
 
     if page == "Home":
