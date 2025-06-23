@@ -10,6 +10,8 @@ from langchain.prompts import PromptTemplate
 from langchain.chains import LLMChain
 from langchain_groq import ChatGroq
 from groq import AuthenticationError
+from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+from langdetect import detect, LangDetectException
 
 st.set_page_config(page_title="YouTube Sentiment Analyzer", layout="wide")
 
@@ -49,6 +51,24 @@ def clean_text(text):
     text = re.sub(r'\d+', '', text)
     return text.strip()
 
+def detect_language(comment):
+    try:
+        lang = detect(comment)
+        return lang
+    except LangDetectException:
+        return 'unknown'
+
+def predict_sentiment_vader(comment):
+    analyzer = SentimentIntensityAnalyzer()
+    scores = analyzer.polarity_scores(comment)
+    compound = scores['compound']
+    if compound >= 0.05:
+        return 'Positive'
+    elif compound <= -0.05:
+        return 'Negative'
+    else:
+        return 'Neutral'
+
 def predict_sentiment_llm(comment, groq_api_key):
     try:
         model = ChatGroq(api_key=groq_api_key, model_name="llama-3.1-70b-versatile")
@@ -57,6 +77,8 @@ def predict_sentiment_llm(comment, groq_api_key):
             - Positive
             - Neutral
             - Negative
+
+            Consider the contextual meaning and cultural nuances of the comment.
 
             Only return one word: Positive, Neutral, or Negative.
 
@@ -73,8 +95,18 @@ def predict_sentiment_llm(comment, groq_api_key):
         st.error("❌ Invalid Groq API key. Please check your GROQ_API_KEY in Streamlit secrets.")
         return 'Neutral'
     except Exception as e:
-        st.warning(f"⚠️ Error in sentiment analysis: {str(e)}. Defaulting to Neutral.")
+        st.warning(f"⚠️ Error in LLM sentiment analysis: {str(e)}. Defaulting to Neutral.")
         return 'Neutral'
+
+def predict_sentiment(comment, groq_api_key, use_multilingual):
+    if not use_multilingual:
+        return predict_sentiment_vader(comment)
+    else:
+        lang = detect_language(comment)
+        if lang == 'en':
+            return predict_sentiment_vader(comment)
+        else:
+            return predict_sentiment_llm(comment, groq_api_key)
 
 def extract_video_id(link):
     match = re.search(r"(?:v=|\/)([a-zA-Z0-9_-]{11})", link)
@@ -178,7 +210,6 @@ def main():
     try:
         youtube_api_key = st.secrets["YOUTUBE_API_KEY"]
         groq_api_key = st.secrets["GROQ_API_KEY"]
-        # Basic validation of Groq API key format (alphanumeric, typical length)
         if not groq_api_key or not re.match(r'^[a-zA-Z0-9_-]{30,100}$', groq_api_key):
             st.error("❌ Invalid Groq API key format in Streamlit secrets.")
             st.stop()
@@ -212,18 +243,14 @@ def main():
                         return
                     st.session_state.df = pd.DataFrame(st.session_state.comments, columns=["Comment"])
 
-                    if multilingual_toggle:
-                        st.session_state.df['Sentiment'] = st.session_state.df['Comment'].apply(
-                            lambda c: predict_sentiment_llm(c, groq_api_key))
-                        st.success("✅ Analysis completed with Grok (Multilingual).")
-                    else:
-                        st.success("✅ Comments fetched. Sentiment analysis skipped.")
-
+                    st.session_state.df['Sentiment'] = st.session_state.df['Comment'].apply(
+                        lambda c: predict_sentiment(c, groq_api_key, multilingual_toggle))
                     st.session_state.summary = summarize_comments_langchain(st.session_state.comments, groq_api_key)
+                    st.success("✅ Analysis completed.")
 
     if page == "Home":
         st.title("🎯 YouTube Sentiment Analyzer")
-        st.markdown("Analyze YouTube comments with optional multilingual sentiment analysis powered by Grok!")
+        st.markdown("Analyze YouTube comments with VADER for English and Grok for multilingual sentiment analysis!")
 
     elif page == "Analysis":
         st.title("📈 Analysis Results")
@@ -253,8 +280,9 @@ def main():
     elif page == "About":
         st.title("ℹ️ About")
         st.markdown("""
-        This app analyzes YouTube comments with optional multilingual sentiment analysis using:
-        - **Grok + LLaMA 3** (Context-aware LLM via GROQ)
+        This app analyzes YouTube comments with:
+        - **VADER** for English sentiment analysis
+        - **Grok + LLaMA 3** for multilingual, context-aware sentiment analysis
 
         Built with ❤️ using Streamlit, LangChain, and open-source models.
         """)
