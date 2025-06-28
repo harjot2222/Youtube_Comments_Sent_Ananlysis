@@ -97,12 +97,15 @@ h1, h2, h3 {
     background-color: #0056b3;
 }
 
-/* -------- YouTube Logo Background Removal -------- */
-img {
-    background: transparent !important;
-    border-radius: 0 !important;
-    box-shadow: none !important;
+
+/* --- YouTube logo image with white background --- */
+.stSidebar img {
+    background-color: white !important;
+    padding: 10px;
+    border-radius: 10px;
+    box-shadow: 0px 0px 10px rgba(255, 255, 255, 0.1);
 }
+
 
 /* -------- Remove margin on top of block container -------- */
 .block-container {
