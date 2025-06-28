@@ -108,7 +108,7 @@ img {
 
 /* Remove top white border */
 header[data-testid="stHeader"] {
-    background-color: #212121;
+    background-color:	#383838;
     border-bottom: 1px solid #303030;
 }
 </style>
