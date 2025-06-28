@@ -90,6 +90,7 @@ img {
 </style>
 """, unsafe_allow_html=True)
 
+
 # --------------------- Utilities --------------------- #
 def clean_text(text):
     text = text.lower()
