@@ -148,7 +148,7 @@ def summarize_comments_langchain(comments, groq_api_key):
     try:
         model = ChatGroq(api_key=groq_api_key, model_name="llama-3.3-70b-versatile")
         prompt = PromptTemplate.from_template("""
-            Summarize the following YouTube comments in Hindi, English, or Hinglish. Provide a concise summary, highlight common themes, user concerns, and what users appreciated or disliked. Give actionable insights for improving future videos.
+            Summarize the following YouTube comments in English only. Provide a concise summary, highlight common themes, user concerns, and what users appreciated or disliked. Give actionable insights for improving future videos.
 
             Comments:
             {comments}
