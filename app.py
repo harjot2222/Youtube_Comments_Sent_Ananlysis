@@ -64,25 +64,25 @@ def detect_language(comment):
         return 'hi'  # Default to 'hi' for mixed or ambiguous text
 
 @st.cache_resource
-def load_hindi_bert_model():
+def load_sentiment_model():
     try:
-        tokenizer = AutoTokenizer.from_pretrained("l3cube-pune/hindi-bert-sentiment")
-        model = AutoModelForSequenceClassification.from_pretrained("l3cube-pune/hindi-bert-sentiment")
+        tokenizer = AutoTokenizer.from_pretrained("cardiffnlp/twitter-xlm-roberta-base-sentiment")
+        model = AutoModelForSequenceClassification.from_pretrained("cardiffnlp/twitter-xlm-roberta-base-sentiment")
         classifier = pipeline("sentiment-analysis", model=model, tokenizer=tokenizer)
         return classifier
     except Exception as e:
-        st.error(f"❌ Failed to load Hindi BERT model: {str(e)}")
+        st.error(f"❌ Failed to load sentiment model: {str(e)}")
         return None
 
-def predict_sentiment_hindi_bert(comment, classifier):
+def predict_sentiment(comment, classifier):
     try:
         cleaned_comment = clean_text(comment)
         if not cleaned_comment:
             return 'Neutral'
-        # Truncate to 512 tokens (BERT's max length)
+        # Truncate to 512 tokens (RoBERTa's max length)
         result = classifier(cleaned_comment, truncation=True, max_length=512)
         label = result[0]['label']
-        # hindi-bert-sentiment outputs 'positive', 'neutral', 'negative'
+        # Model outputs 'Positive', 'Neutral', 'Negative'
         return label.capitalize()
     except Exception as e:
         st.warning(f"⚠️ Sentiment analysis error for comment: {str(e)}. Defaulting to Neutral.")
@@ -100,7 +100,7 @@ def get_comments(video_id, api_key, max_comments=100):
     while len(comments) < max_comments:
         request = youtube.commentThreads().list(
             part="snippet", videoId=video_id, maxResults=100,
-            pageToken=next_page_token, textFormat="plainText"
+            pageToken=next_page_token, textformat="plainText"
         )
         try:
             response = request.execute()
@@ -205,10 +205,10 @@ def main():
         st.error("❌ Missing API keys. Please configure YOUTUBE_API_KEY and GROQ_API_KEY in Streamlit secrets.")
         st.stop()
 
-    # Load Hindi BERT model
-    classifier = load_hindi_bert_model()
+    # Load sentiment model
+    classifier = load_sentiment_model()
     if classifier is None:
-        st.error("❌ Cannot proceed without Hindi BERT model.")
+        st.error("❌ Cannot proceed without sentiment model.")
         st.stop()
 
     # Sidebar configuration
@@ -239,7 +239,7 @@ def main():
                     st.session_state.df = pd.DataFrame(st.session_state.comments, columns=["Comment"])
                     st.session_state.df['Language'] = st.session_state.df['Comment'].apply(detect_language)
                     st.session_state.df['Sentiment'] = st.session_state.df['Comment'].apply(
-                        lambda c: predict_sentiment_hindi_bert(c, classifier)
+                        lambda c: predict_sentiment(c, classifier)
                     )
                     st.session_state.summary = summarize_comments_langchain(st.session_state.comments, groq_api_key)
                     st.success("✅ Analysis completed.")
@@ -247,7 +247,7 @@ def main():
     # Page rendering
     if page == "Home":
         st.title("🎯 YouTube Sentiment Analyzer (Hindi & English)")
-        st.markdown("Analyze YouTube comments in Hindi, English, and Hinglish using Hindi BERT and Grok for insights!")
+        st.markdown("Analyze YouTube comments in Hindi, English, and Hinglish using XLM-RoBERTa and Grok for insights!")
 
     elif page == "Analysis":
         st.title("📈 Analysis Results")
@@ -275,7 +275,7 @@ def main():
         st.title("ℹ️ About")
         st.markdown("""
         This app analyzes YouTube comments in Hindi, English, and Hinglish with:
-        - **Hindi BERT** for sentiment analysis
+        - **XLM-RoBERTa** for sentiment analysis
         - **Grok + LLaMA 3** for summarization and answering questions about comments
 
         Built with ❤️ using Streamlit, LangChain, and Hugging Face transformers.
