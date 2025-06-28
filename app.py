@@ -22,97 +22,98 @@ st.set_page_config(page_title="YouTube Comments Sentiment Analyzer", layout="wid
 # --------------------- Styling --------------------- #
 st.markdown("""
 <style>
-/* -------- App Background -------- */
+/* Entire App Background */
 .stApp {
-    background-color: #0f0f0f;
-    color: #f1f1f1;
-    font-family: 'Segoe UI', sans-serif;
+    background-color: #181818;
+    color: #ffffff;
+    font-family: 'Roboto', sans-serif;
 }
 
-/* -------- Top Red Border/Header Styling -------- */
-header[data-testid="stHeader"] {
-    background-color: #b71c1c;
-    border-bottom: 2px solid #b71c1c;
-    color: white;
-}
-
-/* -------- Sidebar -------- */
+/* Sidebar Styling */
 [data-testid="stSidebar"] {
-    background-color: #1a1a1a;
+    background-color: #212121;
     color: white;
     border-right: 2px solid #333;
 }
 
-/* Sidebar Title and Labels */
+/* Sidebar Elements */
 [data-testid="stSidebar"] h1,
 [data-testid="stSidebar"] h2,
 [data-testid="stSidebar"] label,
-[data-testid="stSidebar"] p,
-[data-testid="stSidebar"] .stTextInput label,
-[data-testid="stSidebar"] .stSelectbox label {
+[data-testid="stSidebar"] p {
     color: white !important;
 }
 
-/* -------- Sidebar Button -------- */
-.stSidebar .stButton > button {
-    background-color: #d32f2f;
-    color: white;
-    border-radius: 6px;
-    padding: 10px;
-    font-weight: bold;
-    width: 100%;
-    transition: 0.3s;
-}
-.stSidebar .stButton > button:hover {
-    background-color: #b71c1c;
-}
-
-/* -------- Inputs -------- */
+/* Inputs (text fields, textarea) */
 input, textarea {
-    background-color: white !important;
-    color: black !important;
+    background-color: #303030 !important;
+    color: white !important;
     border: 1px solid #555 !important;
     border-radius: 6px !important;
 }
 
-/* -------- Sliders -------- */
+/* Selectbox, sliders, etc. */
+.stSelectbox div,
 .stSlider > div {
+    background-color: #303030 !important;
+    color: white !important;
+}
+
+/* Button Styling */
+.stButton>button,
+button[kind="primary"] {
+    background-color: #FF0000;
     color: white;
+    border-radius: 6px;
+    padding: 10px 20px;
+    font-weight: bold;
+}
+.stButton>button:hover,
+button[kind="primary"]:hover {
+    background-color: #cc0000;
 }
 
-/* -------- Main Page Titles -------- */
-h1, h2, h3 {
-    color: #ff5252;
-    text-align: center;
-}
-
-/* -------- Download & Main Buttons -------- */
-.stDownloadButton > button, button[kind="primary"] {
-    background-color: #007bff;
+/* Download Button */
+.stDownloadButton > button {
+    background-color: #FF0000;
     color: white;
     border-radius: 6px;
     padding: 10px 20px;
 }
-.stDownloadButton > button:hover, button[kind="primary"]:hover {
-    background-color: #0056b3;
+.stDownloadButton > button:hover {
+    background-color: #cc0000;
 }
 
+/* Headings */
+h1, h2, h3 {
+    color: #ffffff;
+    text-align: center;
+}
 
-/* --- YouTube logo image with white background --- */
+/* YouTube Logo Styling (white background container) */
 .stSidebar img {
     background-color: white !important;
-    padding: 10px;
     border-radius: 10px;
-    box-shadow: 0px 0px 10px rgba(255, 255, 255, 0.1);
+    padding: 10px;
+    margin-bottom: 15px;
+    box-shadow: 0px 0px 10px rgba(255, 0, 0, 0.2);
 }
 
+/* WordCloud image background */
+img {
+    background-color: white;
+    border-radius: 10px;
+    padding: 10px;
+}
 
-/* -------- Remove margin on top of block container -------- */
-.block-container {
-    margin-top: 0 !important;
+/* Remove top white border */
+header[data-testid="stHeader"] {
+    background-color: #181818;
+    border-bottom: 1px solid #303030;
 }
 </style>
 """, unsafe_allow_html=True)
+
 
 
 
