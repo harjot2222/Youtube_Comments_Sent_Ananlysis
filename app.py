@@ -22,28 +22,71 @@ st.set_page_config(page_title="YouTube Comments Sentiment Analyzer", layout="wid
 # --------------------- Styling --------------------- #
 st.markdown("""
 <style>
-body { font-family: 'Arial', sans-serif; }
-.stApp { background-color: #f4f6f9; }
-.stSidebar .stButton>button {
-    background-color: #4CAF50; color: white; border-radius: 8px;
-    width: 100%; padding: 10px; font-weight: bold;
+/* Entire App Background */
+.stApp {
+    background-color: #0f0f0f;
+    color: #f1f1f1;
+    font-family: 'Segoe UI', sans-serif;
 }
-.stSidebar .stButton>button:hover { background-color: #45a049; }
-.main .block-container {
-    padding: 2rem; background-color: #ffffff;
-    border-radius: 10px; box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-    margin-top: 1rem;
+
+/* Sidebar Styling */
+[data-testid="stSidebar"] {
+    background-color: #1a1a1a;
+    color: white;
+    border-right: 2px solid #333;
 }
-h1 { color: #1e1e2f; font-size: 2.5rem; text-align: center; margin-bottom: 1rem; }
-h2 { color: #2c3e50; font-size: 1.8rem; margin-top: 1.5rem; }
-.stTextInput input {
-    border-radius: 8px; border: 1px solid #dcdcdc; padding: 10px;
+
+/* Sidebar Buttons */
+.stSidebar .stButton > button {
+    background-color: #d32f2f;
+    color: white;
+    border-radius: 6px;
+    padding: 10px;
+    font-weight: bold;
+    width: 100%;
+    transition: 0.3s;
 }
-.stDownloadButton>button {
-    background-color: #007bff; color: white;
-    border-radius: 8px; padding: 10px 20px;
+.stSidebar .stButton > button:hover {
+    background-color: #b71c1c;
 }
-.stDownloadButton > button:hover { background-color: #0056b3; }
+
+/* Input fields */
+input, textarea {
+    background-color: #2a2a2a !important;
+    color: white !important;
+    border: 1px solid #555 !important;
+    border-radius: 6px !important;
+}
+
+/* Dropdowns and sliders */
+.stSelectbox, .stSlider {
+    background-color: #2a2a2a !important;
+    color: white !important;
+}
+
+/* Headings */
+h1, h2, h3 {
+    color: #ff5252;
+    text-align: center;
+}
+
+/* Buttons (Download, Main, etc.) */
+.stDownloadButton > button, button[kind="primary"] {
+    background-color: #007bff;
+    color: white;
+    border-radius: 6px;
+    padding: 10px 20px;
+}
+.stDownloadButton > button:hover, button[kind="primary"]:hover {
+    background-color: #0056b3;
+}
+
+/* WordCloud Container Background (white for contrast) */
+img {
+    background-color: white;
+    border-radius: 10px;
+    padding: 10px;
+}
 </style>
 """, unsafe_allow_html=True)
 
