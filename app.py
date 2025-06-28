@@ -66,8 +66,8 @@ def detect_language(comment):
 @st.cache_resource
 def load_sentiment_model():
     try:
-        tokenizer = AutoTokenizer.from_pretrained("cardiffnlp/twitter-xlm-roberta-base-sentiment")
-        model = AutoModelForSequenceClassification.from_pretrained("cardiffnlp/twitter-xlm-roberta-base-sentiment")
+        tokenizer = AutoTokenizer.from_pretrained("nlptown/bert-base-multilingual-uncased-sentiment")
+        model = AutoModelForSequenceClassification.from_pretrained("nlptown/bert-base-multilingual-uncased-sentiment")
         classifier = pipeline("sentiment-analysis", model=model, tokenizer=tokenizer)
         return classifier
     except Exception as e:
@@ -79,11 +79,16 @@ def predict_sentiment(comment, classifier):
         cleaned_comment = clean_text(comment)
         if not cleaned_comment:
             return 'Neutral'
-        # Truncate to 512 tokens (RoBERTa's max length)
+        # Truncate to 512 tokens (BERT's max length)
         result = classifier(cleaned_comment, truncation=True, max_length=512)
         label = result[0]['label']
-        # Model outputs 'Positive', 'Neutral', 'Negative'
-        return label.capitalize()
+        # Model outputs '1 star' (very negative), '2 stars' (negative), '3 stars' (neutral), '4 stars' (positive), '5 stars' (very positive)
+        if label in ['4 stars', '5 stars']:
+            return 'Positive'
+        elif label == '3 stars':
+            return 'Neutral'
+        else:  # '1 star', '2 stars'
+            return 'Negative'
     except Exception as e:
         st.warning(f"⚠️ Sentiment analysis error for comment: {str(e)}. Defaulting to Neutral.")
         return 'Neutral'
@@ -100,7 +105,7 @@ def get_comments(video_id, api_key, max_comments=100):
     while len(comments) < max_comments:
         request = youtube.commentThreads().list(
             part="snippet", videoId=video_id, maxResults=100,
-            pageToken=next_page_token, textformat="plainText"
+            pageToken=next_page_token, textFormat="plainText"
         )
         try:
             response = request.execute()
@@ -247,7 +252,7 @@ def main():
     # Page rendering
     if page == "Home":
         st.title("🎯 YouTube Sentiment Analyzer (Hindi & English)")
-        st.markdown("Analyze YouTube comments in Hindi, English, and Hinglish using XLM-RoBERTa and Grok for insights!")
+        st.markdown("Analyze YouTube comments in Hindi, English, and Hinglish using BERT and Grok for insights!")
 
     elif page == "Analysis":
         st.title("📈 Analysis Results")
@@ -275,7 +280,7 @@ def main():
         st.title("ℹ️ About")
         st.markdown("""
         This app analyzes YouTube comments in Hindi, English, and Hinglish with:
-        - **XLM-RoBERTa** for sentiment analysis
+        - **BERT (Multilingual)** for sentiment analysis
         - **Grok + LLaMA 3** for summarization and answering questions about comments
 
         Built with ❤️ using Streamlit, LangChain, and Hugging Face transformers.
