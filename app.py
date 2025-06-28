@@ -17,7 +17,7 @@ import torch
 import numpy as np
 
 # Set Streamlit page configuration
-st.set_page_config(page_title="YouTube Sentiment Analyzer (Hindi & English)", layout="wide")
+st.set_page_config(page_title="YouTube Comments Sentiment Analyzer", layout="wide")
 
 # --------------------- Styling --------------------- #
 st.markdown("""
@@ -251,8 +251,8 @@ def main():
 
     # Page rendering
     if page == "Home":
-        st.title("🎯 YouTube Sentiment Analyzer (Hindi & English)")
-        st.markdown("Analyze YouTube comments in Hindi, English, and Hinglish using BERT and Grok for insights!")
+        st.title("❤️ YouTube Comments Sentiment Analyzer")
+        st.markdown("Analyze YouTube comments using BERT and Grok for insights!")
 
     elif page == "Analysis":
         st.title("📈 Analysis Results")
