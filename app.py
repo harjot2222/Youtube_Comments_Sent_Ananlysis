@@ -22,21 +22,38 @@ st.set_page_config(page_title="YouTube Comments Sentiment Analyzer", layout="wid
 # --------------------- Styling --------------------- #
 st.markdown("""
 <style>
-/* Entire App Background */
+/* -------- App Background -------- */
 .stApp {
     background-color: #0f0f0f;
     color: #f1f1f1;
     font-family: 'Segoe UI', sans-serif;
 }
 
-/* Sidebar Styling */
+/* -------- Top Red Border/Header Styling -------- */
+header[data-testid="stHeader"] {
+    background-color: #b71c1c;
+    border-bottom: 2px solid #b71c1c;
+    color: white;
+}
+
+/* -------- Sidebar -------- */
 [data-testid="stSidebar"] {
     background-color: #1a1a1a;
     color: white;
     border-right: 2px solid #333;
 }
 
-/* Sidebar Buttons */
+/* Sidebar Title and Labels */
+[data-testid="stSidebar"] h1,
+[data-testid="stSidebar"] h2,
+[data-testid="stSidebar"] label,
+[data-testid="stSidebar"] p,
+[data-testid="stSidebar"] .stTextInput label,
+[data-testid="stSidebar"] .stSelectbox label {
+    color: white !important;
+}
+
+/* -------- Sidebar Button -------- */
 .stSidebar .stButton > button {
     background-color: #d32f2f;
     color: white;
@@ -50,27 +67,26 @@ st.markdown("""
     background-color: #b71c1c;
 }
 
-/* Input fields */
+/* -------- Inputs -------- */
 input, textarea {
-    background-color: #2a2a2a !important;
-    color: white !important;
+    background-color: white !important;
+    color: black !important;
     border: 1px solid #555 !important;
     border-radius: 6px !important;
 }
 
-/* Dropdowns and sliders */
-.stSelectbox, .stSlider {
-    background-color: #2a2a2a !important;
-    color: white !important;
+/* -------- Sliders -------- */
+.stSlider > div {
+    color: white;
 }
 
-/* Headings */
+/* -------- Main Page Titles -------- */
 h1, h2, h3 {
     color: #ff5252;
     text-align: center;
 }
 
-/* Buttons (Download, Main, etc.) */
+/* -------- Download & Main Buttons -------- */
 .stDownloadButton > button, button[kind="primary"] {
     background-color: #007bff;
     color: white;
@@ -81,14 +97,20 @@ h1, h2, h3 {
     background-color: #0056b3;
 }
 
-/* WordCloud Container Background (white for contrast) */
+/* -------- YouTube Logo Background Removal -------- */
 img {
-    background-color: white;
-    border-radius: 10px;
-    padding: 10px;
+    background: transparent !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+}
+
+/* -------- Remove margin on top of block container -------- */
+.block-container {
+    margin-top: 0 !important;
 }
 </style>
 """, unsafe_allow_html=True)
+
 
 
 # --------------------- Utilities --------------------- #
