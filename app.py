@@ -20,7 +20,6 @@ import numpy as np
 st.set_page_config(page_title="YouTube Comments Sentiment Analyzer", layout="wide")
 
 # --------------------- Styling --------------------- #
-st.markdown("""
 <style>
 /* Entire App Background */
 .stApp {
@@ -42,6 +41,21 @@ st.markdown("""
 [data-testid="stSidebar"] label,
 [data-testid="stSidebar"] p {
     color: white !important;
+}
+
+/* Sidebar Expander Arrow (Fix visibility on black) */
+button[title="Close sidebar"],
+button[title="Open sidebar"] {
+    color: white !important;
+    background-color: transparent !important;
+    border: none !important;
+}
+
+/* Sidebar Toggle Arrow SVG fix */
+button[title="Close sidebar"] svg,
+button[title="Open sidebar"] svg {
+    stroke: white !important;
+    fill: white !important;
 }
 
 /* Inputs (text fields, textarea) */
@@ -106,13 +120,33 @@ img {
     padding: 10px;
 }
 
-/* Remove top white border */
+/* Header Styling: Remove white border + fix icons */
 header[data-testid="stHeader"] {
-    background-color:	#2C2C2C;
+    background-color: #2C2C2C !important;
     border-bottom: 1px solid #303030;
+    color: white !important;
+}
+
+/* Header Buttons (GitHub icon, hamburger menu, etc.) */
+header[data-testid="stHeader"] svg,
+header[data-testid="stHeader"] path {
+    stroke: white !important;
+    fill: white !important;
+}
+
+/* Fix icon buttons visibility in header */
+header[data-testid="stHeader"] button {
+    color: white !important;
+    background-color: transparent !important;
+}
+
+/* Remove default outline on button focus for clean look */
+button:focus {
+    outline: none !important;
+    box-shadow: none !important;
 }
 </style>
-""", unsafe_allow_html=True)
+
 
 
 
