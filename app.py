@@ -214,7 +214,7 @@ def extract_video_id(link):
     return match.group(1) if match else None
 
 def get_youtube_thumbnail(video_id):
-    return f"https://img.youtube.com/vi/{video_id}/mqdefault.jpg"
+    return f"https://img.youtube.com/vi/{video_id}/default.jpg"
 
 @st.cache_data
 def get_comments(video_id, api_key, max_comments=100):
