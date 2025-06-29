@@ -25,6 +25,34 @@ import streamlit as st
 st.markdown("""
     <style>
     /* Entire App Background */
+    /* Header Background */
+header[data-testid="stHeader"] {
+    background-color: #2C2C2C !important;
+    border-bottom: 1px solid #303030;
+    color: white !important;
+}
+
+/* Header Buttons (GitHub icon, menu, etc.) */
+header[data-testid="stHeader"] button,
+header[data-testid="stHeader"] svg,
+header[data-testid="stHeader"] path {
+    color: white !important;
+    fill: white !important;
+    stroke: white !important;
+     transition: all 0.3s ease-in-out;
+    
+}
+
+/* Ensure header icons (e.g., star, share) are visible */
+header[data-testid="stHeader"] button > svg {
+    filter: brightness(10); /* force high visibility */
+}
+header[data-testid="stHeader"] svg {
+    transition: all 0.3s ease-in-out;
+}
+header[data-testid="stHeader"] svg:hover {
+    filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.6));
+}
     .stApp {
         background-color: #181818;
         color: #ffffff;
