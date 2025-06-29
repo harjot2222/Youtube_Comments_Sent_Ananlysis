@@ -26,16 +26,16 @@ st.markdown("""
     <style>
     /* Entire App Background */
     .stApp {
-        background-color: #181818;
-        color: #ffffff;
-        font-family: 'Roboto', sans-serif;
+        background-color: #f5f5f5;
+        color: #333333;
+        font-family: 'Arial', sans-serif;
     }
 
     /* Header Background */
     header[data-testid="stHeader"] {
-        background-color: #2C2C2C !important;
-        border-bottom: 1px solid #303030;
-        color: white !important;
+        background-color: #ffffff;
+        border-bottom: 1px solid #e0e0e0;
+        color: #333333 !important;
     }
 
     /* Target all icons and buttons in header */
@@ -43,83 +43,76 @@ st.markdown("""
     header[data-testid="stHeader"] svg,
     header[data-testid="stHeader"] path,
     header[data-testid="stHeader"] [role="img"] {
-        color: white !important;
-        fill: white !important;
-        stroke: white !important;
+        color: #333333 !important;
+        fill: #333333 !important;
+        stroke: #333333 !important;
         transition: all 0.3s ease-in-out;
     }
 
-    /* Specific targeting for nested SVGs with filter */
+    /* Specific targeting for nested SVGs */
     header[data-testid="stHeader"] button > svg,
     header[data-testid="stHeader"] button > * > svg {
-        color: white !important;
-        fill: white !important;
-        stroke: white !important;
-        filter: brightness(0) invert(1) !important; /* Makes icons white */
-    }
-
-    /* Apply filter to all SVGs in header for consistency */
-    header[data-testid="stHeader"] svg {
-        filter: brightness(0) invert(1) !important;
+        color: #333333 !important;
+        fill: #333333 !important;
+        stroke: #333333 !important;
     }
 
     /* Hover effect */
     header[data-testid="stHeader"] svg:hover {
-        filter: brightness(0) invert(1) drop-shadow(0 0 4px rgba(255, 255, 255, 0.6));
+        filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.2));
     }
 
     /* Sidebar Styling */
     [data-testid="stSidebar"] {
-        background-color: #212121;
-        color: white;
-        border-right: 2px solid #333;
+        background-color: #ffffff;
+        color: #333333;
+        border-right: 1px solid #e0e0e0;
     }
 
     [data-testid="stSidebar"] h1,
     [data-testid="stSidebar"] h2,
     [data-testid="stSidebar"] label,
     [data-testid="stSidebar"] p {
-        color: white !important;
+        color: #333333 !important;
     }
 
     button[title="Close sidebar"],
     button[title="Open sidebar"] {
-        color: white !important;
+        color: #333333 !important;
         background-color: transparent !important;
         border: none !important;
     }
 
-    /* Sidebar toggle icons */
     button[title="Close sidebar"] svg,
     button[title="Open sidebar"] svg {
-        stroke: white !important;
-        fill: white !important;
-        filter: brightness(0) invert(1) !important; /* Ensures white appearance */
+        stroke: #333333 !important;
+        fill: #333333 !important;
     }
 
     input, textarea {
-        background-color: #303030 !important;
-        color: white !important;
-        border: 1px solid #555 !important;
-        border-radius: 6px !important;
+        background-color: #ffffff !important;
+        color: #333333 !important;
+        border: 1px solid #cccccc !important;
+        border-radius: 4px !important;
+        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
     }
 
     .stButton>button,
     button[kind="primary"] {
-        background-color: #FF0000;
+        background-color: #4CAF50;
         color: white;
-        border-radius: 6px;
+        border-radius: 4px;
         padding: 10px 20px;
         font-weight: bold;
+        border: none;
     }
 
     .stButton>button:hover,
     button[kind="primary"]:hover {
-        background-color: #cc0000;
+        background-color: #45a049;
     }
     </style>
 """, unsafe_allow_html=True)
-
 
 
 
