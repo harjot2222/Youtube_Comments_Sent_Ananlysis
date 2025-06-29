@@ -214,7 +214,7 @@ def extract_video_id(link):
     return match.group(1) if match else None
 
 def get_youtube_thumbnail(video_id):
-    return f"https://img.youtube.com/vi/{video_id}/default.jpg"
+    return f"https://img.youtube.com/vi/{video_id}/mqdefault.jpg"
 
 @st.cache_data
 def get_comments(video_id, api_key, max_comments=100):
@@ -340,7 +340,7 @@ def main():
     # Sidebar configuration
     with st.sidebar:
         st.image("youtube-logo-png-46020.png", use_container_width=True)
-        st.header("🎬 YouTube Analyzer (Hindi & English)")
+        st.header("🎬 YouTube Comments Sentiment Analyzer")
         page = st.selectbox("Navigate", ["Home", "Analysis", "CommentBot", "About"])
 
         if page in ["Home", "Analysis", "CommentBot"]:
