@@ -33,27 +33,27 @@ st.markdown("""
 
     /* Header Background */
     header[data-testid="stHeader"] {
-        background-color: #2C2C2C !important;
+        background-color: #2C2C2C;
         border-bottom: 1px solid #303030;
-        color: white !important;
+        color: white;
     }
 
     /* Header Icons and Buttons */
     header[data-testid="stHeader"] button,
     header[data-testid="stHeader"] svg,
     header[data-testid="stHeader"] path {
-        color: white !important;
-        fill: white !important;
-        stroke: white !important;
+        color: white ;
+        fill: white ;
+        stroke: white ;
         transition: all 0.3s ease-in-out;
     }
 
     /* Ensure header icons (e.g., share, menu) are visible */
     header[data-testid="stHeader"] button > svg {
         filter: brightness(10); /* Force high visibility */
-        color: white !important;
-        fill: white !important;
-        stroke: white !important;
+        color: white;
+        fill: white;
+        stroke: white;
     }
 
     header[data-testid="stHeader"] svg:hover {
