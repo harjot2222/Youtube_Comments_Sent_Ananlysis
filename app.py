@@ -21,7 +21,6 @@ st.set_page_config(page_title="YouTube Comments Sentiment Analyzer", layout="wid
 
 # --------------------- Styling --------------------- #
 import streamlit as st
-
 st.markdown("""
     <style>
     /* Entire App Background with Gradient */
@@ -135,6 +134,19 @@ st.markdown("""
         background-color: #3498db !important;
     }
 
+    /* Remove Cursor from Sidebar Selectbox */
+    [data-testid="stSidebar"] select,
+    [data-testid="stSidebar"] [role="combobox"] {
+        caret-color: transparent !important;
+        cursor: pointer !important;
+    }
+
+    [data-testid="stSidebar"] select:focus,
+    [data-testid="stSidebar"] [role="combobox"]:focus {
+        outline: none !important;
+        border-color: #bdc3c7 !important;
+    }
+
     /* Responsive Adjustments */
     @media (max-width: 768px) {
         [data-testid="stSidebar"] {
@@ -148,6 +160,7 @@ st.markdown("""
     }
     </style>
 """, unsafe_allow_html=True)
+
 
 
 # --------------------- Utilities --------------------- #
@@ -199,6 +212,9 @@ def predict_sentiment(comment, classifier):
 def extract_video_id(link):
     match = re.search(r"(?:v=|\/)([a-zA-Z0-9_-]{11})", link)
     return match.group(1) if match else None
+
+def get_youtube_thumbnail(video_id):
+    return f"https://img.youtube.com/vi/{video_id}/hqdefault.jpg"
 
 @st.cache_data
 def get_comments(video_id, api_key, max_comments=100):
@@ -301,6 +317,8 @@ def main():
         st.session_state.user_query = ""
     if 'bot_response' not in st.session_state:
         st.session_state.bot_response = ""
+    if 'thumbnail_url' not in st.session_state:
+        st.session_state.thumbnail_url = None
 
     # Load API keys from Streamlit secrets
     try:
@@ -350,12 +368,17 @@ def main():
                         lambda c: predict_sentiment(c, classifier)
                     )
                     st.session_state.summary = summarize_comments_langchain(st.session_state.comments, groq_api_key)
+                    st.session_state.thumbnail_url = get_youtube_thumbnail(video_id)
                     st.success("✅ Analysis completed.")
 
     # Page rendering
     if page == "Home":
         st.title("❤️ YouTube Comments Sentiment Analyzer")
         st.markdown("Analyze YouTube comments using BERT and Grok for insights!")
+        if st.session_state.thumbnail_url:
+            st.image(st.session_state.thumbnail_url, caption="YouTube Video Thumbnail", use_column_width=True)
+        else:
+            st.info("ℹ️ Enter a YouTube URL in the sidebar and click 'Analyze Now' to display the thumbnail.")
 
     elif page == "Analysis":
         st.title("📈 Analysis Results")
