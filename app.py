@@ -24,97 +24,130 @@ import streamlit as st
 
 st.markdown("""
     <style>
-    /* Entire App Background */
+    /* Entire App Background with Gradient */
     .stApp {
-        background-color: #f5f5f5;
-        color: #333333;
-        font-family: 'Arial', sans-serif;
+        background: linear-gradient(135deg, #f0f4f8, #d9e2ec);
+        color: #2c3e50;
+        font-family: 'Open Sans', sans-serif;
+        min-height: 100vh;
     }
 
-    /* Header Background */
+    /* Header Styling */
     header[data-testid="stHeader"] {
         background-color: #ffffff;
         border-bottom: 1px solid #e0e0e0;
-        color: #333333 !important;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        padding: 10px 20px;
     }
 
-    /* Target all icons and buttons in header */
+    /* Header Icons and Buttons */
     header[data-testid="stHeader"] button,
     header[data-testid="stHeader"] svg,
     header[data-testid="stHeader"] path,
     header[data-testid="stHeader"] [role="img"] {
-        color: #333333 !important;
-        fill: #333333 !important;
-        stroke: #333333 !important;
+        color: #34495e !important;
+        fill: #34495e !important;
+        stroke: #34495e !important;
         transition: all 0.3s ease-in-out;
     }
 
-    /* Specific targeting for nested SVGs */
     header[data-testid="stHeader"] button > svg,
     header[data-testid="stHeader"] button > * > svg {
-        color: #333333 !important;
-        fill: #333333 !important;
-        stroke: #333333 !important;
+        color: #34495e !important;
+        fill: #34495e !important;
+        stroke: #34495e !important;
     }
 
-    /* Hover effect */
     header[data-testid="stHeader"] svg:hover {
-        filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.2));
+        filter: drop-shadow(0 0 6px rgba(52, 73, 94, 0.3));
     }
 
     /* Sidebar Styling */
     [data-testid="stSidebar"] {
         background-color: #ffffff;
-        color: #333333;
+        color: #2c3e50;
         border-right: 1px solid #e0e0e0;
+        box-shadow: 2px 0 4px rgba(0, 0, 0, 0.05);
+        padding: 10px;
     }
 
     [data-testid="stSidebar"] h1,
     [data-testid="stSidebar"] h2,
     [data-testid="stSidebar"] label,
     [data-testid="stSidebar"] p {
-        color: #333333 !important;
+        color: #2c3e50 !important;
     }
 
     button[title="Close sidebar"],
     button[title="Open sidebar"] {
-        color: #333333 !important;
+        color: #34495e !important;
         background-color: transparent !important;
         border: none !important;
     }
 
     button[title="Close sidebar"] svg,
     button[title="Open sidebar"] svg {
-        stroke: #333333 !important;
-        fill: #333333 !important;
+        stroke: #34495e !important;
+        fill: #34495e !important;
     }
 
+    /* Input Fields */
     input, textarea {
         background-color: #ffffff !important;
-        color: #333333 !important;
-        border: 1px solid #cccccc !important;
-        border-radius: 4px !important;
-        box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+        color: #2c3e50 !important;
+        border: 1px solid #bdc3c7 !important;
+        border-radius: 6px !important;
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+        padding: 8px 12px;
+        transition: border-color 0.3s ease;
     }
 
+    input:focus, textarea:focus {
+        border-color: #3498db !important;
+        outline: none;
+    }
+
+    /* Buttons */
     .stButton>button,
     button[kind="primary"] {
-        background-color: #4CAF50;
+        background-color: #3498db;
         color: white;
-        border-radius: 4px;
+        border-radius: 6px;
         padding: 10px 20px;
-        font-weight: bold;
+        font-weight: 600;
         border: none;
+        box-shadow: 0 2px 4px rgba(52, 152, 219, 0.2);
+        transition: all 0.3s ease;
     }
 
     .stButton>button:hover,
     button[kind="primary"]:hover {
-        background-color: #45a049;
+        background-color: #2980b9;
+        box-shadow: 0 4px 8px rgba(52, 152, 219, 0.3);
+    }
+
+    /* General Styling */
+    .stSlider > div {
+        color: #2c3e50 !important;
+    }
+
+    .stSlider [role="slider"] {
+        background-color: #3498db !important;
+    }
+
+    /* Responsive Adjustments */
+    @media (max-width: 768px) {
+        [data-testid="stSidebar"] {
+            padding: 5px;
+        }
+        .stButton>button,
+        button[kind="primary"] {
+            padding: 8px 16px;
+            font-size: 14px;
+        }
     }
     </style>
 """, unsafe_allow_html=True)
-
-
 
 
 # --------------------- Utilities --------------------- #
