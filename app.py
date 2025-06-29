@@ -49,18 +49,23 @@ st.markdown("""
         transition: all 0.3s ease-in-out;
     }
 
-    /* Specific targeting for nested SVGs */
+    /* Specific targeting for nested SVGs with filter */
     header[data-testid="stHeader"] button > svg,
     header[data-testid="stHeader"] button > * > svg {
         color: white !important;
         fill: white !important;
         stroke: white !important;
-        filter: brightness(100) !important; /* Force white */
+        filter: brightness(0) invert(1) !important; /* Makes icons white */
+    }
+
+    /* Apply filter to all SVGs in header for consistency */
+    header[data-testid="stHeader"] svg {
+        filter: brightness(0) invert(1) !important;
     }
 
     /* Hover effect */
     header[data-testid="stHeader"] svg:hover {
-        filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.6));
+        filter: brightness(0) invert(1) drop-shadow(0 0 4px rgba(255, 255, 255, 0.6));
     }
 
     /* Sidebar Styling */
@@ -84,10 +89,12 @@ st.markdown("""
         border: none !important;
     }
 
+    /* Sidebar toggle icons */
     button[title="Close sidebar"] svg,
     button[title="Open sidebar"] svg {
         stroke: white !important;
         fill: white !important;
+        filter: brightness(0) invert(1) !important; /* Ensures white appearance */
     }
 
     input, textarea {
@@ -110,7 +117,7 @@ st.markdown("""
     button[kind="primary"]:hover {
         background-color: #cc0000;
     }
-</style>
+    </style>
 """, unsafe_allow_html=True)
 
 
