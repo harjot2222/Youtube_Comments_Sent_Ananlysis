@@ -20,132 +20,79 @@ import numpy as np
 st.set_page_config(page_title="YouTube Comments Sentiment Analyzer", layout="wide")
 
 # --------------------- Styling --------------------- #
-<style>
-/* Entire App Background */
-.stApp {
-    background-color: #181818;
-    color: #ffffff;
-    font-family: 'Roboto', sans-serif;
-}
+import streamlit as st
 
-/* Sidebar Styling */
-[data-testid="stSidebar"] {
-    background-color: #212121;
-    color: white;
-    border-right: 2px solid #333;
-}
+st.markdown("""
+    <style>
+    /* Entire App Background */
+    .stApp {
+        background-color: #181818;
+        color: #ffffff;
+        font-family: 'Roboto', sans-serif;
+    }
 
-/* Sidebar Elements */
-[data-testid="stSidebar"] h1,
-[data-testid="stSidebar"] h2,
-[data-testid="stSidebar"] label,
-[data-testid="stSidebar"] p {
-    color: white !important;
-}
+    /* Sidebar Styling */
+    [data-testid="stSidebar"] {
+        background-color: #212121;
+        color: white;
+        border-right: 2px solid #333;
+    }
 
-/* Sidebar Expander Arrow (Fix visibility on black) */
-button[title="Close sidebar"],
-button[title="Open sidebar"] {
-    color: white !important;
-    background-color: transparent !important;
-    border: none !important;
-}
+    [data-testid="stSidebar"] h1,
+    [data-testid="stSidebar"] h2,
+    [data-testid="stSidebar"] label,
+    [data-testid="stSidebar"] p {
+        color: white !important;
+    }
 
-/* Sidebar Toggle Arrow SVG fix */
-button[title="Close sidebar"] svg,
-button[title="Open sidebar"] svg {
-    stroke: white !important;
-    fill: white !important;
-}
+    button[title="Close sidebar"],
+    button[title="Open sidebar"] {
+        color: white !important;
+        background-color: transparent !important;
+        border: none !important;
+    }
 
-/* Inputs (text fields, textarea) */
-input, textarea {
-    background-color: #303030 !important;
-    color: white !important;
-    border: 1px solid #555 !important;
-    border-radius: 6px !important;
-}
+    button[title="Close sidebar"] svg,
+    button[title="Open sidebar"] svg {
+        stroke: white !important;
+        fill: white !important;
+    }
 
-/* Selectbox, sliders, etc. */
-.stSelectbox div,
-.stSlider > div {
-    background-color: #303030 !important;
-    color: white !important;
-}
+    input, textarea {
+        background-color: #303030 !important;
+        color: white !important;
+        border: 1px solid #555 !important;
+        border-radius: 6px !important;
+    }
 
-/* Button Styling */
-.stButton>button,
-button[kind="primary"] {
-    background-color: #FF0000;
-    color: white;
-    border-radius: 6px;
-    padding: 10px 20px;
-    font-weight: bold;
-}
-.stButton>button:hover,
-button[kind="primary"]:hover {
-    background-color: #cc0000;
-}
+    .stButton>button,
+    button[kind="primary"] {
+        background-color: #FF0000;
+        color: white;
+        border-radius: 6px;
+        padding: 10px 20px;
+        font-weight: bold;
+    }
 
-/* Download Button */
-.stDownloadButton > button {
-    background-color: #FF0000;
-    color: white;
-    border-radius: 6px;
-    padding: 10px 20px;
-}
-.stDownloadButton > button:hover {
-    background-color: #cc0000;
-}
+    .stButton>button:hover,
+    button[kind="primary"]:hover {
+        background-color: #cc0000;
+    }
 
-/* Headings */
-h1, h2, h3 {
-    color: #ffffff;
-    text-align: center;
-}
+    header[data-testid="stHeader"] {
+        background-color: #2C2C2C !important;
+        border-bottom: 1px solid #303030;
+        color: white !important;
+    }
 
-/* YouTube Logo Styling (white background container) */
-.stSidebar img {
-    background-color: white !important;
-    border-radius: 10px;
-    padding: 10px;
-    margin-bottom: 15px;
-    box-shadow: 0px 0px 10px rgba(255, 0, 0, 0.2);
-}
+    header[data-testid="stHeader"] svg,
+    header[data-testid="stHeader"] path {
+        stroke: white !important;
+        fill: white !important;
+    }
 
-/* WordCloud image background */
-img {
-    background-color: white;
-    border-radius: 10px;
-    padding: 10px;
-}
-
-/* Header Styling: Remove white border + fix icons */
-header[data-testid="stHeader"] {
-    background-color: #2C2C2C !important;
-    border-bottom: 1px solid #303030;
-    color: white !important;
-}
-
-/* Header Buttons (GitHub icon, hamburger menu, etc.) */
-header[data-testid="stHeader"] svg,
-header[data-testid="stHeader"] path {
-    stroke: white !important;
-    fill: white !important;
-}
-
-/* Fix icon buttons visibility in header */
-header[data-testid="stHeader"] button {
-    color: white !important;
-    background-color: transparent !important;
-}
-
-/* Remove default outline on button focus for clean look */
-button:focus {
-    outline: none !important;
-    box-shadow: none !important;
-}
-</style>
+    </style>
+""", unsafe_allow_html=True)
 
 
 
