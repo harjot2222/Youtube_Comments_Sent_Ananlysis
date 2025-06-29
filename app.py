@@ -376,7 +376,7 @@ def main():
         st.title("❤️ YouTube Comments Sentiment Analyzer")
         st.markdown("Analyze YouTube comments using BERT and Grok for insights!")
         if st.session_state.thumbnail_url:
-            st.image(st.session_state.thumbnail_url, caption="YouTube Video Thumbnail", use_column_width=True)
+            st.image(st.session_state.thumbnail_url, caption="YouTube Video Thumbnail", use_container_width=True)
         else:
             st.info("ℹ️ Enter a YouTube URL in the sidebar and click 'Analyze Now' to display the thumbnail.")
 
