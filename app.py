@@ -33,29 +33,32 @@ st.markdown("""
 
     /* Header Background */
     header[data-testid="stHeader"] {
-        background-color: #2C2C2C;
+        background-color: #2C2C2C !important;
         border-bottom: 1px solid #303030;
-        color: white;
+        color: white !important;
     }
 
-    /* Header Icons and Buttons */
+    /* Target all icons and buttons in header */
     header[data-testid="stHeader"] button,
     header[data-testid="stHeader"] svg,
-    header[data-testid="stHeader"] path {
-        color: white ;
-        fill: white ;
-        stroke: white ;
+    header[data-testid="stHeader"] path,
+    header[data-testid="stHeader"] [role="img"] {
+        color: white !important;
+        fill: white !important;
+        stroke: white !important;
         transition: all 0.3s ease-in-out;
     }
 
-    /* Ensure header icons (e.g., share, menu) are visible */
-    header[data-testid="stHeader"] button > svg {
-        filter: brightness(10); /* Force high visibility */
-        color: white;
-        fill: white;
-        stroke: white;
+    /* Specific targeting for nested SVGs */
+    header[data-testid="stHeader"] button > svg,
+    header[data-testid="stHeader"] button > * > svg {
+        color: white !important;
+        fill: white !important;
+        stroke: white !important;
+        filter: brightness(100) !important; /* Force white */
     }
 
+    /* Hover effect */
     header[data-testid="stHeader"] svg:hover {
         filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.6));
     }
