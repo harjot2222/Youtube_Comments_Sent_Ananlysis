@@ -77,7 +77,7 @@ This project is licensed under the MIT License.
 Feel free to use, distribute, and modify — just provide attribution ⭐
 
 🙏 Credits
-Made with ❤️ by [Your Name]
+Made with ❤️ by Harjot Singh
 Powered by:
 
 Streamlit
