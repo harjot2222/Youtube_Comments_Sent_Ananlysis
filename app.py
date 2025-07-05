@@ -1,3 +1,4 @@
+# 👇 Your existing imports (unchanged)
 import streamlit as st
 import pandas as pd
 import re
@@ -19,8 +20,6 @@ import numpy as np
 # Set Streamlit page configuration
 st.set_page_config(page_title="YouTube Comments Sentiment Analyzer", layout="wide")
 
-# --------------------- Styling --------------------- #
-import streamlit as st
 st.markdown("""
     <style>
     /* Entire App Background with Gradient */
@@ -162,8 +161,8 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 
-
 # --------------------- Utilities --------------------- #
+
 def clean_text(text):
     text = text.lower()
     text = re.sub(r'<.*?>', '', text)
@@ -174,10 +173,9 @@ def clean_text(text):
 def detect_language(comment):
     try:
         lang = detect(comment)
-        # Restrict to Hindi ('hi'), English ('en'), or Hinglish (detected as 'hi' or 'en')
-        return lang if lang in ['hi', 'en'] else 'hi'  # Treat Hinglish as 'hi' for simplicity
+        return lang if lang in ['hi', 'en'] else 'hi'
     except LangDetectException:
-        return 'hi'  # Default to 'hi' for mixed or ambiguous text
+        return 'hi'
 
 @st.cache_resource
 def load_sentiment_model():
@@ -195,15 +193,13 @@ def predict_sentiment(comment, classifier):
         cleaned_comment = clean_text(comment)
         if not cleaned_comment:
             return 'Neutral'
-        # Truncate to 512 tokens (BERT's max length)
         result = classifier(cleaned_comment, truncation=True, max_length=512)
         label = result[0]['label']
-        # Model outputs '1 star' (very negative), '2 stars' (negative), '3 stars' (neutral), '4 stars' (positive), '5 stars' (very positive)
         if label in ['4 stars', '5 stars']:
             return 'Positive'
         elif label == '3 stars':
             return 'Neutral'
-        else:  # '1 star', '2 stars'
+        else:
             return 'Negative'
     except Exception as e:
         st.warning(f"⚠️ Sentiment analysis error for comment: {str(e)}. Defaulting to Neutral.")
@@ -213,8 +209,21 @@ def extract_video_id(link):
     match = re.search(r"(?:v=|\/)([a-zA-Z0-9_-]{11})", link)
     return match.group(1) if match else None
 
-def get_youtube_thumbnail(video_id):
-    return f"https://img.youtube.com/vi/{video_id}/maxresdefault.jpg"
+# ✅ NEW FUNCTION: Fetch video title + medium thumbnail
+def get_video_metadata(video_id, api_key):
+    try:
+        youtube = build('youtube', 'v3', developerKey=api_key)
+        request = youtube.videos().list(part="snippet", id=video_id)
+        response = request.execute()
+        if response["items"]:
+            title = response["items"][0]["snippet"]["title"]
+            thumbnail_url = response["items"][0]["snippet"]["thumbnails"]["medium"]["url"]
+            return title, thumbnail_url
+        else:
+            return "Unknown Title", ""
+    except Exception as e:
+        st.warning(f"⚠️ Failed to fetch video metadata: {str(e)}")
+        return "Unknown Title", ""
 
 @st.cache_data
 def get_comments(video_id, api_key, max_comments=100):
@@ -247,8 +256,6 @@ def visualize_sentiment(results_df):
         sns.barplot(x=sentiment_counts.index, y=sentiment_counts.values, palette='Set2', ax=ax)
         ax.set_ylabel("Number of Comments")
         st.pyplot(fig)
-    else:
-        st.info("ℹ️ Sentiment analysis was not performed.")
 
     st.subheader("☁️ WordCloud of Comments")
     all_comments = " ".join(results_df["Comment"])
@@ -307,18 +314,9 @@ def qa_bot_response_langchain(user_query, comments, groq_api_key):
 # --------------------- Main App --------------------- #
 def main():
     # Initialize session state
-    if 'df' not in st.session_state:
-        st.session_state.df = None
-    if 'comments' not in st.session_state:
-        st.session_state.comments = None
-    if 'summary' not in st.session_state:
-        st.session_state.summary = None
-    if 'user_query' not in st.session_state:
-        st.session_state.user_query = ""
-    if 'bot_response' not in st.session_state:
-        st.session_state.bot_response = ""
-    if 'thumbnail_url' not in st.session_state:
-        st.session_state.thumbnail_url = None
+    for key in ['df', 'comments', 'summary', 'user_query', 'bot_response', 'thumbnail_url', 'video_title']:
+        if key not in st.session_state:
+            st.session_state[key] = "" if key in ['video_title', 'user_query', 'bot_response'] else None
 
     # Load API keys from Streamlit secrets
     try:
@@ -361,24 +359,25 @@ def main():
                     if not st.session_state.comments:
                         st.warning("⚠️ No comments fetched.")
                         return
-                    # Create DataFrame with original comments
                     st.session_state.df = pd.DataFrame(st.session_state.comments, columns=["Comment"])
                     st.session_state.df['Language'] = st.session_state.df['Comment'].apply(detect_language)
                     st.session_state.df['Sentiment'] = st.session_state.df['Comment'].apply(
                         lambda c: predict_sentiment(c, classifier)
                     )
                     st.session_state.summary = summarize_comments_langchain(st.session_state.comments, groq_api_key)
-                    st.session_state.thumbnail_url = get_youtube_thumbnail(video_id)
+                    # ✅ Fetch and store video metadata
+                    st.session_state.video_title, st.session_state.thumbnail_url = get_video_metadata(video_id, youtube_api_key)
                     st.success("✅ Analysis completed.")
 
-    # Page rendering
+    # ------------------ Pages ------------------ #
     if page == "Home":
         st.title("❤️ YouTube Comments Sentiment Analyzer")
-        st.markdown("Analyze YouTube comments using BERT and Grok for insights!")
-        if st.session_state.thumbnail_url:
-            st.image(st.session_state.thumbnail_url, caption="YouTube Video Thumbnail", use_container_width=True)
+        st.markdown("Analyze YouTube comments using BERT and Grok for multilingual insights!")
+        if st.session_state.thumbnail_url and st.session_state.video_title:
+            st.markdown(f"### 🎬 {st.session_state.video_title}")
+            st.image(st.session_state.thumbnail_url, caption="YouTube Thumbnail", width=480)
         else:
-            st.info("ℹ️ Enter a YouTube URL in the sidebar and click 'Analyze Now' to display the thumbnail.")
+            st.info("ℹ️ Enter a YouTube URL in the sidebar and click 'Analyze Now' to display title & thumbnail.")
 
     elif page == "Analysis":
         st.title("📈 Analysis Results")
@@ -392,7 +391,7 @@ def main():
     elif page == "CommentBot":
         st.title("💬 CommentBot")
         if st.session_state.comments:
-            st.session_state.user_query = st.text_input("Ask something about the comments (e.g., improvements, suggestions):", value=st.session_state.user_query)
+            st.session_state.user_query = st.text_input("Ask something about the comments:", value=st.session_state.user_query)
             if st.button("Ask CommentBot"):
                 with st.spinner("💡 Thinking..."):
                     st.session_state.bot_response = qa_bot_response_langchain(
@@ -406,9 +405,8 @@ def main():
         st.title("ℹ️ About")
         st.markdown("""
         This app analyzes YouTube comments in Hindi, English, and Hinglish with:
-        - **BERT (Multilingual)** for sentiment analysis
-        - **Grok + LLaMA 3** for summarization and answering questions about comments
-
+        - **BERT (Multilingual)** for sentiment analysis  
+        - **Grok + LLaMA 3** for summarization and QA  
         Built with ❤️ using Streamlit, LangChain, and Hugging Face transformers.
         """)
 
