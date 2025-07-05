@@ -1,100 +1,84 @@
-# 🎥 YouTube Sentiment Analyzer
+🎥 YouTube Sentiment Analyzer
+AI-powered Streamlit App using VADER, BERT, and LangChain + GROQ
 
-![Python](https://img.shields.io/badge/Python-3.8+-blue.svg)
-![Streamlit](https://img.shields.io/badge/Built%20with-Streamlit-ff4b4b)
-![LangChain](https://img.shields.io/badge/NLP-LangChain%20%2B%20GROQ-brightgreen)
-![License](https://img.shields.io/badge/License-MIT-lightgrey)
+Analyze and visualize YouTube video comments with sentiment classification, multilingual support, AI-generated summaries, and a smart CommentBot assistant.
 
-A professional Streamlit app that analyzes YouTube video comments using **VADER Sentiment Analysis** and **LangChain + GROQ-powered LLMs**. Gain sentiment insights, generate summaries, and interact with an AI CommentBot to explore viewer feedback in detail.
+🔍 Features
+✅ Fetches comments from any public YouTube video
+✅ Cleans and preprocesses text using NLP techniques
+✅ Detects comment language (supports English, Hindi, and Hinglish)
+✅ Performs sentiment classification using BERT (via Hugging Face Transformers)
+✅ Visualizes sentiment distribution and word clouds
+✅ Generates AI-powered summaries using LangChain + GROQ (LLaMA 3)
+✅ Chat with CommentBot to query viewer feedback using LLMs
+✅ Fully responsive UI with modern Streamlit styling and custom CSS
 
----
+🚀 Live Demo
+👉 (Add link here once deployed — e.g., Streamlit Cloud, Render)
 
-## 🔍 Features
+🧠 Tech Stack
+Layer	Technologies
+Frontend	Streamlit + HTML/CSS
+Backend	Python
+APIs	YouTube Data API v3, GROQ (via LangChain)
+Libraries	pandas, matplotlib, seaborn, wordcloud, vaderSentiment, langchain, streamlit, google-api-python-client, transformers, langdetect
 
-✅ Fetches comments from any YouTube video  
-✅ Cleans and preprocesses text using NLP techniques  
-✅ Classifies sentiment (Positive / Negative / Neutral) using VADER  
-✅ Visualizes results using bar charts and word clouds  
-✅ Generates AI-powered summaries using LangChain + GROQ  
-✅ Interactive CommentBot for querying viewer feedback  
-✅ Beautiful, responsive Streamlit UI with custom CSS
-
----
-
-## 🚀 Demo
-
-<p align="center">
-  <img src="https://github.com/your-username/your-repo-name/assets/demo.gif" width="75%">
-</p>
-
----
-
-## 🧠 Tech Stack
-
-- **Frontend**: Streamlit + HTML/CSS
-- **Backend**: Python
-- **APIs**: YouTube Data API v3, GROQ (via LangChain)
-- **Libraries**: `pandas`, `matplotlib`, `seaborn`, `vaderSentiment`, `wordcloud`, `google-api-python-client`, `langchain`, `streamlit`
-
----
-
-## ⚙️ Installation
-
-```bash
+⚙️ Installation
+bash
+Copy
+Edit
 git clone https://github.com/your-username/youtube-sentiment-analyzer.git
 cd youtube-sentiment-analyzer
 pip install -r requirements.txt
-
 🔐 Setup: API Keys
-Go to your Streamlit secrets file:
-~/.streamlit/secrets.toml (or .streamlit/secrets.toml in the project root)
+Add your keys to secrets.toml (create this if it doesn't exist):
 
-Add your keys like this:
+Location:
+
+Linux/Mac: ~/.streamlit/secrets.toml
+
+Windows/Project: .streamlit/secrets.toml
 
 toml
 Copy
 Edit
 YOUTUBE_API_KEY = "your_youtube_api_key"
-GROOQ_API_KEY = "your_groq_api_key"
-Get YouTube API Key: https://console.developers.google.com
+GROQ_API_KEY = "your_groq_api_key"
+🔑 Get YouTube API Key
 
-Get GROQ API Key: https://console.groq.com (requires xAI/GROQ account)
+🔑 Get GROQ API Key (xAI/GROQ account required)
 
 🧪 Run the App
 bash
 Copy
 Edit
 streamlit run app.py
-🖼️ Screenshots
-🔍 Sentiment Analysis
+📸 Screenshots
+Sentiment Analysis	Word Cloud	CommentBot
 
+💡 Add these screenshots in a screenshots/ folder.
 
-☁️ WordCloud
-
-
-🤖 CommentBot
-
-
-📦 Project Structure
+📂 Project Structure
 bash
 Copy
 Edit
-📁 youtube-sentiment-analyzer
+📁 youtube-sentiment-analyzer/
 │
-├── app.py                     # Main Streamlit App
-├── requirements.txt          # Dependencies
+├── app.py                    # Main Streamlit app
+├── requirements.txt          # Python dependencies
 ├── .streamlit/
-│   └── secrets.toml          # API Keys
+│   └── secrets.toml          # API keys configuration
 ├── assets/
-│   └── youtube-logo.png      # Logo used in sidebar
-└── README.md                 # You're reading this!
+│   └── youtube-logo.png      # Sidebar logo
+├── screenshots/              # Demo images (optional)
+└── README.md                 # This file
 📄 License
-This project is licensed under the MIT License.
-Feel free to use, modify, and share — with credit.
+Licensed under the MIT License.
+Feel free to use, modify, or share — just give proper credit.
 
 🙌 Credits
-Built with ❤️ by Your Name
-Using:
+Built with ❤️ by [Your Name]
+Powered by:
 
 Streamlit
 
@@ -104,39 +88,23 @@ LangChain
 
 GROQ + LLaMA 3
 
-💡 Future Enhancements
-🎯 Sentiment filtering (show only positive/negative)
+Hugging Face Transformers
 
-📊 Time-series sentiment trends
+💡 Future Enhancements
+🎯 Sentiment filter (Positive / Negative toggle)
+
+📊 Time-series trend analysis
 
 🧵 Threaded comment analysis
 
-🌍 Multi-language support
+🌍 Multi-language translation support
+
+🧠 Topic modeling for clustering comment themes
 
 🤝 Contributions Welcome!
-Pull requests, feature suggestions, or issues — all are welcome!
-Let’s improve it together 💥
+Pull requests, issues, and ideas are welcome!
+Let’s build something insightful and impactful together 💥
 
-⭐ If you found this useful, give it a star!
-It helps others discover the project 🌟
-
-yaml
-Copy
-Edit
-
----
-
-Let me know if you'd like me to:
-- Add a `requirements.txt`
-- Generate demo screenshots or a GIF preview
-- Help you deploy to **Streamlit Cloud** or **Render**
-
-
-
-
-
-
-
-
-
+⭐ If you find this project helpful, give it a star!
+It helps others discover and use it 🌟
 
