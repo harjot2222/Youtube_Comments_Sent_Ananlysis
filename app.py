@@ -287,7 +287,7 @@ if comments_data:
 else:
     st.error("No comments fetched.")
 
-            # else: st.error("❌ Invalid YouTube URL/ID")
+else: st.error("❌ Invalid YouTube URL/ID")
 
     if st.session_state.analysis_data:
         df = st.session_state.analysis_data["df"]
@@ -357,6 +357,7 @@ elif mode == "🔥 Trending Videos":
 
 st.markdown("---")
 st.markdown("<div style='text-align:center;color:#666;'>YouTube Comment Sentiment Analyzer • Powered by YouTube API & Gemini AI</div>", unsafe_allow_html=True)
+
 
 
 
