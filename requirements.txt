@@ -3,7 +3,6 @@ pandas==2.2.3
 numpy==1.26.4
 transformers==4.46.2
 torch==2.5.1
-sentencepiece==0.2.0
 huggingface-hub==0.26.2
 textblob==0.17.1
 langdetect==1.0.9
@@ -17,4 +16,5 @@ google-api-python-client==2.149.0
 python-dotenv==1.0.1
 tqdm==4.66.5
 regex==2024.9.11
+
 
