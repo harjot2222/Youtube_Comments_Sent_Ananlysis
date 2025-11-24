@@ -253,6 +253,7 @@ def fetch_video_info(video_id):
 
 
 # ---------------------- USE FIXED INFO BLOCK ---------------------- #
+
 video_info = fetch_video_info(video_id)
 
 c1, c2 = st.columns([1, 2])
@@ -270,16 +271,23 @@ if video_info and "error" not in video_info:
 
 else:
     st.warning("ℹ️ Unable to load video info. Showing basic analysis only.")
-    comments_data = get_comments(video_id, max_comments)
-    if comments_data:
-                    df = pd.DataFrame(comments_data)
-                    df["clean_text"] = df["text"].apply(clean_text)
-                    df["sentiment"] = df["clean_text"].apply(enhanced_analyze_sentiment)
-                    df["is_spam"] = df["clean_text"].apply(is_spam)
-                    df["likeCount"] = pd.to_numeric(df["likeCount"], errors="coerce").fillna(0)
-                    st.session_state.analysis_data = {"df": df, "video_id": video_id}
-                else: st.error("No comments fetched.")
-            else: st.error("❌ Invalid YouTube URL/ID")
+
+
+# ---------------------- ALWAYS FETCH COMMENTS AFTER INFO BLOCK ---------------------- #
+
+comments_data = get_comments(video_id, max_comments)
+
+if comments_data:
+    df = pd.DataFrame(comments_data)
+    df["clean_text"] = df["text"].apply(clean_text)
+    df["sentiment"] = df["clean_text"].apply(enhanced_analyze_sentiment)
+    df["is_spam"] = df["clean_text"].apply(is_spam)
+    df["likeCount"] = pd.to_numeric(df["likeCount"], errors="coerce").fillna(0)
+    st.session_state.analysis_data = {"df": df, "video_id": video_id}
+else:
+    st.error("No comments fetched.")
+
+            # else: st.error("❌ Invalid YouTube URL/ID")
 
     if st.session_state.analysis_data:
         df = st.session_state.analysis_data["df"]
@@ -349,5 +357,6 @@ elif mode == "🔥 Trending Videos":
 
 st.markdown("---")
 st.markdown("<div style='text-align:center;color:#666;'>YouTube Comment Sentiment Analyzer • Powered by YouTube API & Gemini AI</div>", unsafe_allow_html=True)
+
 
 
