@@ -1,11 +1,6 @@
-# ---------- Core Framework ----------
 streamlit==1.38.0
-
-# ---------- Data Handling ----------
 pandas==2.2.3
 numpy==1.26.4
-
-# ---------- NLP and Transformers ----------
 transformers==4.46.2
 torch==2.5.1
 sentencepiece==0.2.0
@@ -14,23 +9,13 @@ textblob==0.17.1
 langdetect==1.0.9
 indic-transliteration==2.3.47
 nltk==3.9.1
-
-# ---------- Visualization ----------
 matplotlib==3.9.2
 seaborn==0.13.2
 wordcloud==1.9.3
-
-# ---------- LangChain + LLMs ----------
 langchain==0.3.9
 langchain_groq==0.2.0
 groq==1.4.0
-
-# ---------- Google API ----------
 google-api-python-client==2.149.0
-
-# ---------- Environment Management ----------
 python-dotenv==1.0.1
-
-# ---------- Utilities ----------
 tqdm==4.66.5
 regex==2024.9.11
