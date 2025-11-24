@@ -1,5 +1,8 @@
-import os, re, logging
+import os
+import re
+import logging
 from urllib.parse import urlparse, parse_qs
+
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -11,159 +14,214 @@ import nltk
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import torch
-import google.generativeai as genai
+
+# Optional: google generative ai (Gemini)
+try:
+    import google.generativeai as genai
+except Exception:
+    genai = None
 
 # Config
 st.set_page_config(page_title="YouTube Comment Sentiment Analyzer", page_icon="📊", layout="wide")
 nltk.download("vader_lexicon", quiet=True)
 load_dotenv()
-YOUTUBE_API_KEY, GEMINI_API_KEY = os.getenv("YOUTUBE_API_KEY"), os.getenv("GEMINI_API_KEY")
-if GEMINI_API_KEY: genai.configure(api_key=GEMINI_API_KEY)
+YOUTUBE_API_KEY = os.getenv("YOUTUBE_API_KEY")
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+if GEMINI_API_KEY and genai:
+    try:
+        genai.configure(api_key=GEMINI_API_KEY)
+    except Exception:
+        pass
 
 # Cached Models
 @st.cache_resource
 def load_models():
     try:
         vader = SentimentIntensityAnalyzer()
+    except Exception:
+        vader = None
+
+    # try loading hinglish model (may be heavy; fallback to None)
+    try:
         tokenizer = AutoTokenizer.from_pretrained("pascalrai/hinglish-twitter-roberta-base-sentiment")
         model = AutoModelForSequenceClassification.from_pretrained("pascalrai/hinglish-twitter-roberta-base-sentiment")
-        return vader, tokenizer, model
-    except: return None, None, None
+    except Exception:
+        tokenizer = None
+        model = None
+
+    return vader, tokenizer, model
 
 vader, tokenizer_hinglish, model_hinglish = load_models()
 
-# Core Functions
+# ---------------- Core helper functions ---------------- #
 def extract_video_id(url_or_id):
-    if not url_or_id: return None
+    if not url_or_id:
+        return None
     s = url_or_id.strip()
-    if re.match(r'^[A-Za-z0-9_-]{11}$', s): return s
+    # direct id
+    if re.match(r'^[A-Za-z0-9_-]{11}$', s):
+        return s
     try:
         p = urlparse(s)
-        if "youtu.be" in p.hostname: return p.path.lstrip("/").split("?")[0]
-        if "youtube.com" in p.hostname:
+        hostname = (p.hostname or "").lower()
+        if "youtu.be" in hostname:
+            return p.path.lstrip("/").split("?")[0]
+        if "youtube.com" in hostname:
             v = parse_qs(p.query).get("v", [None])[0]
             return v if v and re.match(r'^[A-Za-z0-9_-]{11}$', v) else None
-    except: return None
+    except Exception:
+        return None
+    return None
 
 def get_comments(video_id, max_comments=500):
-    if not video_id or not YOUTUBE_API_KEY: return []
+    if not video_id or not YOUTUBE_API_KEY:
+        return []
     comments = []
     try:
         youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
-        req = youtube.commentThreads().list(part="snippet", videoId=video_id, maxResults=min(100, max_comments), textFormat="plainText")
+        req = youtube.commentThreads().list(
+            part="snippet",
+            videoId=video_id,
+            maxResults=min(100, max_comments),
+            textFormat="plainText"
+        )
         while req and len(comments) < max_comments:
             res = req.execute()
             for it in res.get("items", []):
                 s = it["snippet"]["topLevelComment"]["snippet"]
-                comments.append({"author": s.get("authorDisplayName", "Unknown"), "text": s.get("textDisplay", ""),
-                               "likeCount": s.get("likeCount", 0), "publishedAt": s.get("publishedAt", "")})
-            req = youtube.commentThreads().list(part="snippet", videoId=video_id, 
-                   maxResults=min(100, max_comments-len(comments)), pageToken=res.get("nextPageToken"), textFormat="plainText") if "nextPageToken" in res else None
-    except Exception as e: st.error(f"❌ Error: {e}")
+                comments.append({
+                    "author": s.get("authorDisplayName", "Unknown"),
+                    "text": s.get("textDisplay", ""),
+                    "likeCount": s.get("likeCount", 0),
+                    "publishedAt": s.get("publishedAt", "")
+                })
+            # prepare next page
+            token = res.get("nextPageToken")
+            if token and len(comments) < max_comments:
+                req = youtube.commentThreads().list(
+                    part="snippet",
+                    videoId=video_id,
+                    maxResults=min(100, max_comments - len(comments)),
+                    pageToken=token,
+                    textFormat="plainText"
+                )
+            else:
+                req = None
+    except Exception as e:
+        st.error(f"❌ Error fetching comments: {e}")
     return comments[:max_comments]
 
 def clean_text(text):
     if not text or not isinstance(text, str):
         return ""
-
-    
-    text = re.sub(r"http\S+|www\.\S+", "", text)
-
-    text = re.sub(r"[^A-Za-z0-9\s\u0900-\u097F.,!?\U0001F300-\U0001F64F]", "", text)
-
-    text = re.sub(r"\s+", " ", text).strip()
-
-    return text
+    # remove urls
+    t = re.sub(r"http\S+|www\.\S+", "", text)
+    # keep latin, devanagari, numbers and basic punctuation + emoji range
+    t = re.sub(r"[^A-Za-z0-9\s\u0900-\u097F.,!?\U0001F300-\U0001F64F]", "", t)
+    t = re.sub(r"\s+", " ", t).strip()
+    return t
 
 def is_spam(text):
-    if not text or len(text.strip()) < 3: return True
+    if not text or len(text.strip()) < 3:
+        return True
     t = text.lower()
-    return any(ind in t for ind in ['subscribe', 'check out', 'buy now', 'follow me', 'click here', 'visit website', 'discount']) or \
-           any(re.search(p, t) for p in [r'http\S+|www\.|\.com', r'@gmail\.com|@yahoo\.com'])
+    spam_keywords = ['subscribe', 'check out', 'buy now', 'follow me', 'click here', 'visit website', 'discount']
+    if any(k in t for k in spam_keywords):
+        return True
+    if re.search(r'http\S+|www\.|\.com', t):
+        return True
+    if re.search(r'@gmail\.com|@yahoo\.com', t):
+        return True
+    return False
 
 def predict_hinglish_sentiment(text):
     try:
-        if not text.strip(): return "Neutral"
+        if not text or not tokenizer_hinglish or not model_hinglish:
+            return "Neutral"
         inputs = tokenizer_hinglish(text, return_tensors="pt", truncation=True, padding=True, max_length=512)
-        with torch.no_grad(): pred = int(torch.argmax(model_hinglish(**inputs).logits, dim=-1).item())
+        with torch.no_grad():
+            logits = model_hinglish(**inputs).logits
+        pred = int(torch.argmax(logits, dim=-1).item())
         return ["Negative", "Neutral", "Positive"][pred]
-    except: return "Neutral"
+    except Exception:
+        return "Neutral"
 
 def enhanced_analyze_sentiment(text):
-    if not text or not isinstance(text, str) or len(clean_text(text)) < 3: return "Neutral"
+    if not text or not isinstance(text, str) or len(clean_text(text)) < 3:
+        return "Neutral"
     try:
-        clean_text_val = clean_text(text)
-        has_english, has_hindi = bool(re.search(r'[a-zA-Z]', clean_text_val)), bool(re.search(r'[\u0900-\u097F]', clean_text_val))
-        votes, confidences = [], []
-        
+        ct = clean_text(text)
+        has_english = bool(re.search(r'[a-zA-Z]', ct))
+        has_hindi = bool(re.search(r'[\u0900-\u097F]', ct))
+        votes = []
+        confidences = []
+
+        # TextBlob for English-ish short polarity
         if has_english and not has_hindi:
-            tb_score = TextBlob(clean_text_val).sentiment.polarity
+            tb_score = TextBlob(ct).sentiment.polarity
             votes.append("Positive" if tb_score > 0.15 else "Negative" if tb_score < -0.15 else "Neutral")
             confidences.append(abs(tb_score) if tb_score != 0 else 0.5)
-        
+
+        # Vader if available
         if vader and has_english:
-            compound = vader.polarity_scores(clean_text_val)["compound"]
+            compound = vader.polarity_scores(ct)["compound"]
             votes.append("Positive" if compound > 0.1 else "Negative" if compound < -0.1 else "Neutral")
             confidences.append(min(abs(compound) * 2, 1.0))
-        
+
+        # Hinglish model for Hindi/mixed content
         if has_hindi or (has_english and has_hindi):
-            hinglish_pred = predict_hinglish_sentiment(clean_text_val)
+            hinglish_pred = predict_hinglish_sentiment(ct)
             votes.append(hinglish_pred)
             confidences.append(0.8 if hinglish_pred != "Neutral" else 0.6)
-        
-        if not votes: return "Neutral"
-        scores = {"Positive": 0, "Negative": 0, "Neutral": 0}
-        for vote, confidence in zip(votes, confidences): scores[vote] += confidence
+
+        if not votes:
+            return "Neutral"
+
+        scores = {"Positive": 0.0, "Negative": 0.0, "Neutral": 0.0}
+        for v, c in zip(votes, confidences):
+            scores[v] += float(c)
         return max(scores.items(), key=lambda x: x[1])[0]
-    except: return "Neutral"
+    except Exception:
+        return "Neutral"
 
 def make_wordcloud(texts):
-    if not texts: return None
+    if not texts:
+        return None
     all_text = " ".join([t for t in texts if isinstance(t, str) and t.strip()])
-    return WordCloud(width=800, height=400, background_color="white", colormap="Purples", max_words=100).generate(all_text) if all_text.strip() else None
+    if not all_text.strip():
+        return None
+    return WordCloud(width=800, height=400, background_color="white", colormap="Purples", max_words=100).generate(all_text)
 
 def summarize_with_gemini(df):
-    if not GEMINI_API_KEY: return "Gemini API key not configured."
+    if not GEMINI_API_KEY or not genai:
+        return "Gemini API key not configured or google.generativeai not available."
     try:
         filtered = df.loc[~df["is_spam"]].sort_values("likeCount", ascending=False)
-        if filtered.empty: return "No valid comments to summarize."
-        items = [c for s in ["Positive", "Neutral", "Negative"] for c in filtered[filtered["sentiment"] == s].head(5)["clean_text"].tolist()]
-        if not items: return "No comments available for summary."
+        if filtered.empty:
+            return "No valid comments to summarize."
+        items = []
+        for s in ["Positive", "Neutral", "Negative"]:
+            items.extend(filtered[filtered["sentiment"] == s].head(5)["clean_text"].tolist())
+        items = items[:15]
+        if not items:
+            return "No comments available for summary."
         prompt = f"""Analyze these YouTube comments and provide a structured summary:
 
-{" ".join([f"{i+1}. {c}" for i, c in enumerate(items[:15])])}
+{" ".join([f"{i+1}. {c}" for i, c in enumerate(items)])}
 
 Context: {len(filtered)} comments analyzed. Positive={len(filtered[filtered['sentiment']=='Positive'])},
 Neutral={len(filtered[filtered['sentiment']=='Neutral'])}, Negative={len(filtered[filtered['sentiment']=='Negative'])}
 Provide executive summary, key insights, and recommendations with bullets."""
-        return genai.GenerativeModel("gemini-2.0-flash").generate_content(prompt).text
-    except Exception as e: return f"Error: {e}"
+        # Use the generative API safely
+        try:
+            resp = genai.GenerativeModel("gemini-2.0-flash").generate_content(prompt)
+            return getattr(resp, "text", str(resp))
+        except Exception as e:
+            return f"Gemini error: {e}"
+    except Exception as e:
+        return f"Error: {e}"
 
-# Chat Processing
-def process_chat_message(user_input):
-    if not user_input or not user_input.strip(): return
-    st.session_state.chat_history.append({"role": "user", "content": user_input.strip()})
-    try:
-        analysis_context = ""
-        if st.session_state.analysis_data:
-            df = st.session_state.analysis_data["df"]
-            total = len(df)
-            pos, neg, neu, spam = len(df[df["sentiment"]=="Positive"]), len(df[df["sentiment"]=="Negative"]), len(df[df["sentiment"]=="Neutral"]), len(df[df["is_spam"]==True])
-            analysis_context = f"Analysis: {total} comments. Positive: {pos}({pos/total*100:.1f}%), Negative: {neg}({neg/total*100:.1f}%), Neutral: {neu}({neu/total*100:.1f}%), Spam: {spam}({spam/total*100:.1f}%)"
-        
-        if GEMINI_API_KEY:
-            prompt = f"""YouTube analytics assistant. User: {user_input}. {analysis_context}. Provide concise, actionable insights about sentiment analysis."""
-            bot = genai.GenerativeModel("gemini-2.0-flash").generate_content(prompt).text
-        else:
-            if st.session_state.analysis_data:
-                df = st.session_state.analysis_data["df"]
-                pos, neg, neu, spam = len(df[df["sentiment"]=="Positive"]), len(df[df["sentiment"]=="Negative"]), len(df[df["sentiment"]=="Neutral"]), len(df[df["is_spam"]==True])
-                bot = f"Analysis: {len(df)} comments. Positive: {pos}, Negative: {neg}, Neutral: {neu}, Spam: {spam}. Configure Gemini for detailed insights."
-            else: bot = "Analyze a video first for specific insights or configure Gemini API."
-        st.session_state.chat_history.append({"role": "assistant", "content": bot})
-    except: st.session_state.chat_history.append({"role": "assistant", "content": "Error processing request."})
-
-# CSS
+# ---------------- UI & Layout ---------------- #
 st.markdown("""<style>
 .main-header{font-size:2.5rem;font-weight:700;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-align:center}
 .metric-card{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);padding:1.5rem;border-radius:12px;text-align:center;color:white;margin-bottom:1rem}
@@ -178,10 +236,12 @@ st.markdown("""<style>
 </style>""", unsafe_allow_html=True)
 
 # Session State
-if "chat_history" not in st.session_state: st.session_state.chat_history = []
-if "analysis_data" not in st.session_state: st.session_state.analysis_data = None
+if "chat_history" not in st.session_state:
+    st.session_state.chat_history = []
+if "analysis_data" not in st.session_state:
+    st.session_state.analysis_data = None
 
-# Sidebar
+# Sidebar and controls
 with st.sidebar:
     st.markdown('<div class="sidebar-content">', unsafe_allow_html=True)
     st.image("https://cdn-icons-png.flaticon.com/512/1384/1384060.png", width=80)
@@ -209,15 +269,50 @@ with st.sidebar:
             for chat in st.session_state.chat_history:
                 cls = "chat-message-user" if chat["role"] == "user" else "chat-message-bot"
                 st.markdown(f'<div class="{cls}"><strong>{"You" if chat["role"] == "user" else "Assistant"}:</strong> {chat["content"]}</div>', unsafe_allow_html=True)
-    
-    
+
     with st.form(key="chat_form", clear_on_submit=True):
         chat_input = st.text_input("Type your message...", key="chat_input", label_visibility="collapsed", placeholder="Ask about sentiment analysis...")
         submit_button = st.form_submit_button("➤ Send", use_container_width=True)
         if submit_button and chat_input and chat_input.strip():
-            process_chat_message(chat_input)
+            # process chat message inline to keep everything intact
+            def process_chat_message_local(user_input):
+                if not user_input or not user_input.strip():
+                    return
+                st.session_state.chat_history.append({"role": "user", "content": user_input.strip()})
+                try:
+                    analysis_context = ""
+                    if st.session_state.analysis_data:
+                        df = st.session_state.analysis_data["df"]
+                        total = len(df)
+                        pos = len(df[df["sentiment"] == "Positive"])
+                        neg = len(df[df["sentiment"] == "Negative"])
+                        neu = len(df[df["sentiment"] == "Neutral"])
+                        spam = len(df[df["is_spam"] == True])
+                        analysis_context = f"Analysis: {total} comments. Positive: {pos}({pos/total*100:.1f}%), Negative: {neg}({neg/total*100:.1f}%), Neutral: {neu}({neu/total*100:.1f}%), Spam: {spam}({spam/total*100:.1f}%)"
+
+                    if GEMINI_API_KEY and genai:
+                        prompt = f"""YouTube analytics assistant. User: {user_input}. {analysis_context}. Provide concise, actionable insights about sentiment analysis."""
+                        try:
+                            bot = genai.GenerativeModel("gemini-2.0-flash").generate_content(prompt).text
+                        except Exception:
+                            bot = "Gemini API error. Check logs."
+                    else:
+                        if st.session_state.analysis_data:
+                            df = st.session_state.analysis_data["df"]
+                            pos = len(df[df["sentiment"] == "Positive"])
+                            neg = len(df[df["sentiment"] == "Negative"])
+                            neu = len(df[df["sentiment"] == "Neutral"])
+                            spam = len(df[df["is_spam"] == True])
+                            bot = f"Analysis: {len(df)} comments. Positive: {pos}, Negative: {neg}, Neutral: {neu}, Spam: {spam}. Configure Gemini for detailed insights."
+                        else:
+                            bot = "Analyze a video first for specific insights or configure Gemini API."
+                    st.session_state.chat_history.append({"role": "assistant", "content": bot})
+                except Exception:
+                    st.session_state.chat_history.append({"role": "assistant", "content": "Error processing request."})
+
+            process_chat_message_local(chat_input)
             st.rerun()
-    
+
     if st.button("🗑️ Clear Chat", use_container_width=True, key="clear_chat"):
         st.session_state.chat_history = []
         st.rerun()
@@ -227,122 +322,137 @@ with st.sidebar:
 st.markdown('<h1 class="main-header">YouTube Comment Sentiment Analyzer</h1>', unsafe_allow_html=True)
 
 # ---------------------- FIXED VIDEO INFO BLOCK ---------------------- #
-
 def fetch_video_info(video_id):
     """Safely fetch video metadata from YouTube API."""
     try:
         youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
-        response = youtube.videos().list(
-            part="snippet,statistics",
-            id=video_id
-        ).execute()
-
+        response = youtube.videos().list(part="snippet,statistics", id=video_id).execute()
         if not response.get("items"):
-            return None  # invalid or private video
-
+            return None
         item = response["items"][0]
         return {
             "title": item["snippet"]["title"],
             "channel": item["snippet"]["channelTitle"],
-            "thumbnail": item["snippet"]["thumbnails"]["high"]["url"],
+            "thumbnail": item["snippet"]["thumbnails"].get("high", {}).get("url") or item["snippet"]["thumbnails"]["default"]["url"],
             "views": int(item["statistics"].get("viewCount", 0)),
             "likes": int(item["statistics"].get("likeCount", 0)),
         }
     except Exception as e:
         return {"error": str(e)}
 
+# ---------------------- ANALYSIS FLOW ---------------------- #
+if mode == "📊 Analysis":
+    if 'analyze_btn' in locals() and analyze_btn and video_input and YOUTUBE_API_KEY:
+        with st.spinner("🔄 Processing..."):
+            video_id = extract_video_id(video_input)
+            if not video_id:
+                st.error("❌ Invalid YouTube URL/ID")
+            else:
+                # fetch and display video info safely
+                video_info = fetch_video_info(video_id)
+                c1, c2 = st.columns([1, 2])
+                if video_info and "error" not in video_info:
+                    with c1:
+                        st.image(video_info["thumbnail"], use_container_width=True)
+                    with c2:
+                        st.subheader(video_info["title"])
+                        st.caption(
+                            f"Channel: {video_info['channel']} | "
+                            f"Views: {video_info['views']:,} | 👍 {video_info['likes']:,}"
+                        )
+                else:
+                    st.info("ℹ️ Video info unavailable or private. Proceeding with comments analysis.")
 
-# ---------------------- USE FIXED INFO BLOCK ---------------------- #
+                # Always try to fetch comments after video info attempt
+                comments_data = get_comments(video_id, max_comments)
+                if comments_data:
+                    df = pd.DataFrame(comments_data)
+                    df["clean_text"] = df["text"].apply(clean_text)
+                    df["sentiment"] = df["clean_text"].apply(enhanced_analyze_sentiment)
+                    df["is_spam"] = df["clean_text"].apply(is_spam)
+                    df["likeCount"] = pd.to_numeric(df["likeCount"], errors="coerce").fillna(0)
+                    st.session_state.analysis_data = {"df": df, "video_id": video_id}
+                else:
+                    st.error("No comments fetched or comments unavailable for this video.")
 
-video_info = fetch_video_info(video_id)
-
-c1, c2 = st.columns([1, 2])
-
-if video_info and "error" not in video_info:
-    with c1:
-        st.image(video_info["thumbnail"], use_container_width=True)
-
-    with c2:
-        st.subheader(video_info["title"])
-        st.caption(
-            f"Channel: {video_info['channel']} | "
-            f"Views: {video_info['views']:,} | 👍 {video_info['likes']:,}"
-        )
-
-else:
-    st.warning("ℹ️ Unable to load video info. Showing basic analysis only.")
-
-
-# ---------------------- ALWAYS FETCH COMMENTS AFTER INFO BLOCK ---------------------- #
-
-comments_data = get_comments(video_id, max_comments)
-
-if comments_data:
-    df = pd.DataFrame(comments_data)
-    df["clean_text"] = df["text"].apply(clean_text)
-    df["sentiment"] = df["clean_text"].apply(enhanced_analyze_sentiment)
-    df["is_spam"] = df["clean_text"].apply(is_spam)
-    df["likeCount"] = pd.to_numeric(df["likeCount"], errors="coerce").fillna(0)
-    st.session_state.analysis_data = {"df": df, "video_id": video_id}
-else:
-    st.error("No comments fetched.")
-
-else: st.error("❌ Invalid YouTube URL/ID")
-
+    # If we have analysis data, show results (this is outside the analyze button block)
     if st.session_state.analysis_data:
         df = st.session_state.analysis_data["df"]
-        total, pos, neg, spam = len(df), len(df[df["sentiment"]=="Positive"]), len(df[df["sentiment"]=="Negative"]), len(df[df["is_spam"]==True])
-        
+        total = len(df)
+        pos = len(df[df["sentiment"] == "Positive"])
+        neg = len(df[df["sentiment"] == "Negative"])
+        spam = len(df[df["is_spam"] == True])
+
         st.subheader("📈 Analysis Results")
         cols = st.columns(5)
         metrics = [("Total Comments", total), ("Positive", pos), ("Negative", neg), ("Spam", spam)]
         for i, (label, value) in enumerate(metrics):
-            with cols[i]: st.markdown(f'<div class="metric-card">{label}<br><span style="font-size:2rem;">{value}</span></div>', unsafe_allow_html=True)
-        with cols[4]: st.markdown(f'<div class="accuracy-badge">ENSEMBLE ACCURACY<br><span style="font-size:2rem;">91.5%</span></div>', unsafe_allow_html=True)
-        
+            with cols[i]:
+                st.markdown(f'<div class="metric-card">{label}<br><span style="font-size:2rem;">{value}</span></div>', unsafe_allow_html=True)
+        with cols[4]:
+            st.markdown(f'<div class="accuracy-badge">ENSEMBLE ACCURACY<br><span style="font-size:2rem;">91.5%</span></div>', unsafe_allow_html=True)
+
         c1, c2 = st.columns(2)
         with c1:
             st.subheader("Sentiment Distribution")
-            fig, ax = plt.subplots(figsize=(8,6))
-            ax.pie(df['sentiment'].value_counts().values, labels=df['sentiment'].value_counts().index, autopct='%1.1f%%', colors=['#4CAF50','#FF5252','#FFC107'])
-            ax.set_facecolor('none'); st.pyplot(fig)
+            fig, ax = plt.subplots(figsize=(8, 6))
+            counts = df['sentiment'].value_counts()
+            labels = counts.index.tolist()
+            values = counts.values.tolist()
+            if values:
+                ax.pie(values, labels=labels, autopct='%1.1f%%')
+            st.pyplot(fig)
         with c2:
             st.subheader("Spam vs Non-Spam")
-            fig, ax = plt.subplots(figsize=(8,6))
-            ax.bar(['Non-Spam','Spam'], df['is_spam'].value_counts().values, color=['#2196F3','#FF9800'], alpha=0.8)
-            ax.set_facecolor('none'); st.pyplot(fig)
+            fig, ax = plt.subplots(figsize=(8, 6))
+            counts = df['is_spam'].value_counts()
+            if True in counts.index and False in counts.index:
+                values = [counts.get(False, 0), counts.get(True, 0)]
+            else:
+                # ensure we always show both bars
+                values = [counts.get(False, 0), counts.get(True, 0)]
+            ax.bar(['Non-Spam', 'Spam'], values, alpha=0.8)
+            st.pyplot(fig)
 
         st.subheader("Word Cloud - Non-Spam Comments")
         wc = make_wordcloud(df[~df["is_spam"]]["clean_text"].tolist())
         if wc:
-            fig, ax = plt.subplots(figsize=(12,6))
-            ax.imshow(wc, interpolation='bilinear'); ax.axis('off'); st.pyplot(fig)
-        else: st.info("No sufficient text for word cloud.")
+            fig, ax = plt.subplots(figsize=(12, 6))
+            ax.imshow(wc, interpolation='bilinear')
+            ax.axis('off')
+            st.pyplot(fig)
+        else:
+            st.info("No sufficient text for word cloud.")
 
         st.subheader("🤖 AI-Powered Summary")
         st.markdown(summarize_with_gemini(df))
 
         st.subheader("Sample Comments by Sentiment")
-        for s in ["Positive","Neutral","Negative"]:
-            with st.expander(f"{s} Comments ({len(df[df['sentiment']==s])})"):
-                for _, comment in df[df['sentiment']==s].head(10).iterrows():
+        for s in ["Positive", "Neutral", "Negative"]:
+            with st.expander(f"{s} Comments ({len(df[df['sentiment'] == s])})"):
+                for _, comment in df[df['sentiment'] == s].head(10).iterrows():
                     st.markdown(f"**{comment['author']}** (👍 {comment['likeCount']})\n> {comment['clean_text'][:200]}{'...' if len(comment['clean_text'])>200 else ''}")
 
         st.subheader("📥 Export Data")
-        st.download_button("Download CSV", df[['author','clean_text','sentiment','is_spam','likeCount','publishedAt']].to_csv(index=False), 
-                          f"youtube_analysis_{st.session_state.analysis_data['video_id']}.csv", "text/csv", use_container_width=True)
+        csv_bytes = df[['author', 'clean_text', 'sentiment', 'is_spam', 'likeCount', 'publishedAt']].to_csv(index=False)
+        st.download_button("Download CSV", csv_bytes, f"youtube_analysis_{st.session_state.analysis_data['video_id']}.csv", "text/csv", use_container_width=True)
 
+# Trending videos section (unchanged behavior)
 elif mode == "🔥 Trending Videos":
     st.subheader("Trending Videos")
-    region = st.selectbox("Region", ["US","IN","GB","CA","AU","JP","KR"])
+    region = st.selectbox("Region", ["US", "IN", "GB", "CA", "AU", "JP", "KR"])
     if st.button("Load Trending Videos", type="primary"):
         with st.spinner("Loading..."):
             try:
                 youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
                 trending = youtube.videos().list(part="snippet,statistics", chart="mostPopular", regionCode=region, maxResults=6).execute()
-                videos = [{"title": item["snippet"]["title"], "thumbnail": item["snippet"]["thumbnails"]["medium"]["url"],
-                          "video_id": item["id"], "views": int(item["statistics"].get("viewCount",0)), 
-                          "likes": int(item["statistics"].get("likeCount",0))} for item in trending.get("items",[])]
+                videos = [{
+                    "title": item["snippet"]["title"],
+                    "thumbnail": item["snippet"]["thumbnails"]["medium"]["url"],
+                    "video_id": item["id"],
+                    "views": int(item["statistics"].get("viewCount", 0)),
+                    "likes": int(item["statistics"].get("likeCount", 0))
+                } for item in trending.get("items", [])]
                 cols = st.columns(2)
                 for idx, video in enumerate(videos):
                     with cols[idx % 2]:
@@ -353,11 +463,8 @@ elif mode == "🔥 Trending Videos":
                             <a href="https://www.youtube.com/watch?v={video['video_id']}" target="_blank">
                                 <button style="width:100%;padding:8px;background:#FF0000;color:white;border:none;border-radius:4px;">Watch</button>
                             </a></div>""", unsafe_allow_html=True)
-            except: st.error("Failed to load trending videos.")
+            except Exception:
+                st.error("Failed to load trending videos.")
 
 st.markdown("---")
 st.markdown("<div style='text-align:center;color:#666;'>YouTube Comment Sentiment Analyzer • Powered by YouTube API & Gemini AI</div>", unsafe_allow_html=True)
-
-
-
-
