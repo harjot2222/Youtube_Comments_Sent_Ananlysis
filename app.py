@@ -31,11 +31,13 @@ if GEMINI_API_KEY and genai:
     try:
         genai.configure(api_key=GEMINI_API_KEY)
     except Exception:
+        # don't crash if configure fails in cloud
         pass
 
 # ---------- Cached Models ----------
 @st.cache_resource
 def load_models():
+    """Load sentiment helpers. Return (vader, tokenizer, model)."""
     # Vader (lightweight)
     try:
         vader = SentimentIntensityAnalyzer()
@@ -55,10 +57,12 @@ def load_models():
 vader, tokenizer_hinglish, model_hinglish = load_models()
 
 # ---------- Helper functions ----------
+
 def extract_video_id(url_or_id):
     if not url_or_id:
         return None
     s = url_or_id.strip()
+    # direct id
     if re.match(r'^[A-Za-z0-9_-]{11}$', s):
         return s
     try:
@@ -72,6 +76,7 @@ def extract_video_id(url_or_id):
     except Exception:
         return None
     return None
+
 
 def get_comments(video_id, max_comments=500):
     if not video_id or not YOUTUBE_API_KEY:
@@ -105,13 +110,16 @@ def get_comments(video_id, max_comments=500):
         st.error(f"❌ Error fetching comments: {e}")
     return comments[:max_comments]
 
+
 def clean_text(text):
     if not text or not isinstance(text, str):
         return ""
     t = re.sub(r"http\S+|www\.\S+", "", text)
+    # allow latin, devanagari, digits, punctuation and common emojis block
     t = re.sub(r"[^A-Za-z0-9\s\u0900-\u097F.,!?\U0001F300-\U0001F64F]", "", t)
     t = re.sub(r"\s+", " ", t).strip()
     return t
+
 
 def is_spam(text):
     if not text or len(text.strip()) < 3:
@@ -126,6 +134,7 @@ def is_spam(text):
         return True
     return False
 
+
 def predict_hinglish_sentiment(text):
     try:
         if not text or not tokenizer_hinglish or not model_hinglish:
@@ -137,6 +146,7 @@ def predict_hinglish_sentiment(text):
         return ["Negative", "Neutral", "Positive"][pred]
     except Exception:
         return "Neutral"
+
 
 def enhanced_analyze_sentiment(text):
     if not text or not isinstance(text, str) or len(clean_text(text)) < 3:
@@ -173,6 +183,7 @@ def enhanced_analyze_sentiment(text):
     except Exception:
         return "Neutral"
 
+
 def make_wordcloud(texts):
     if not texts:
         return None
@@ -180,6 +191,7 @@ def make_wordcloud(texts):
     if not all_text.strip():
         return None
     return WordCloud(width=800, height=400, background_color="white", colormap="Purples", max_words=100).generate(all_text)
+
 
 def summarize_with_gemini(df):
     if not GEMINI_API_KEY or not genai:
@@ -194,13 +206,7 @@ def summarize_with_gemini(df):
         items = items[:15]
         if not items:
             return "No comments available for summary."
-        prompt = f"""Analyze these YouTube comments and provide a structured summary:
-
-{" ".join([f"{i+1}. {c}" for i, c in enumerate(items)])}
-
-Context: {len(filtered)} comments analyzed. Positive={len(filtered[filtered['sentiment']=='Positive'])},
-Neutral={len(filtered[filtered['sentiment']=='Neutral'])}, Negative={len(filtered[filtered['sentiment']=='Negative'])}
-Provide executive summary, key insights, and recommendations with bullets."""
+        prompt = f"""Analyze these YouTube comments and provide a structured summary:\n\n{" ".join([f"{i+1}. {c}" for i, c in enumerate(items)])}\n\nContext: {len(filtered)} comments analyzed. Positive={len(filtered[filtered['sentiment']=='Positive'])},\nNeutral={len(filtered[filtered['sentiment']=='Neutral'])}, Negative={len(filtered[filtered['sentiment']=='Negative'])}\nProvide executive summary, key insights, and recommendations with bullets."""
         try:
             resp = genai.GenerativeModel("gemini-2.0-flash").generate_content(prompt)
             return getattr(resp, "text", str(resp))
@@ -208,6 +214,7 @@ Provide executive summary, key insights, and recommendations with bullets."""
             return f"Gemini error: {e}"
     except Exception as e:
         return f"Error: {e}"
+
 
 # ---------- UI CSS ----------
 st.markdown("""<style>
@@ -223,13 +230,13 @@ st.markdown("""<style>
 .chat-container{background:white;border-radius:0 0 12px 12px;padding:1rem;box-shadow:0 4px 15px rgba(0,0,0,0.1)}
 </style>""", unsafe_allow_html=True)
 
+
 # ---------- Session state ----------
 if "chat_history" not in st.session_state:
     st.session_state.chat_history = []
 if "analysis_data" not in st.session_state:
-    st.session_state_analysis = None
-if "analysis_data" not in st.session_state:
     st.session_state["analysis_data"] = None
+
 
 # ---------- Sidebar ----------
 with st.sidebar:
@@ -237,7 +244,7 @@ with st.sidebar:
     st.image("https://cdn-icons-png.flaticon.com/512/1384/1384060.png", width=80)
     st.title("YouTube Analyzer")
     st.markdown("---")
-    mode = st.radio("Navigation", ["📊 Analysis", "🔥 Trending Videos"])
+    mode = st.radio("Navigation", ["📊 Analysis", "🔥 Trending Videos"]) 
     if mode == "📊 Analysis":
         video_input = st.text_input("YouTube URL or Video ID", placeholder="Paste URL or video ID")
         max_comments = st.slider("Maximum Comments", 50, 1000, 200, 50)
@@ -266,44 +273,44 @@ with st.sidebar:
         submit_button = st.form_submit_button("➤ Send", use_container_width=True)
         if submit_button and chat_input and chat_input.strip():
             # inline chat processor (preserve earlier behavior)
-            if chat_input and chat_input.strip():
-                st.session_state.chat_history.append({"role": "user", "content": chat_input.strip()})
-                try:
-                    analysis_context = ""
+            st.session_state.chat_history.append({"role": "user", "content": chat_input.strip()})
+            try:
+                analysis_context = ""
+                if st.session_state.get("analysis_data"):
+                    df = st.session_state["analysis_data"]["df"]
+                    total = len(df)
+                    pos = len(df[df["sentiment"] == "Positive"])
+                    neg = len(df[df["sentiment"] == "Negative"])
+                    neu = len(df[df["sentiment"] == "Neutral"])
+                    spam = len(df[df["is_spam"] == True])
+                    analysis_context = f"Analysis: {total} comments. Positive: {pos}({pos/total*100:.1f}%), Negative: {neg}({neg/total*100:.1f}%), Neutral: {neu}({neu/total*100:.1f}%), Spam: {spam}({spam/total*100:.1f}%)"
+
+                if GEMINI_API_KEY and genai:
+                    prompt = f"""YouTube analytics assistant. User: {chat_input}. {analysis_context}. Provide concise, actionable insights about sentiment analysis."""
+                    try:
+                        bot = genai.GenerativeModel("gemini-2.0-flash").generate_content(prompt).text
+                    except Exception:
+                        bot = "Gemini API error. Check logs."
+                else:
                     if st.session_state.get("analysis_data"):
                         df = st.session_state["analysis_data"]["df"]
-                        total = len(df)
                         pos = len(df[df["sentiment"] == "Positive"])
                         neg = len(df[df["sentiment"] == "Negative"])
                         neu = len(df[df["sentiment"] == "Neutral"])
                         spam = len(df[df["is_spam"] == True])
-                        analysis_context = f"Analysis: {total} comments. Positive: {pos}({pos/total*100:.1f}%), Negative: {neg}({neg/total*100:.1f}%), Neutral: {neu}({neu/total*100:.1f}%), Spam: {spam}({spam/total*100:.1f}%)"
-
-                    if GEMINI_API_KEY and genai:
-                        prompt = f"""YouTube analytics assistant. User: {chat_input}. {analysis_context}. Provide concise, actionable insights about sentiment analysis."""
-                        try:
-                            bot = genai.GenerativeModel("gemini-2.0-flash").generate_content(prompt).text
-                        except Exception:
-                            bot = "Gemini API error. Check logs."
+                        bot = f"Analysis: {len(df)} comments. Positive: {pos}, Negative: {neg}, Neutral: {neu}, Spam: {spam}. Configure Gemini for detailed insights."
                     else:
-                        if st.session_state.get("analysis_data"):
-                            df = st.session_state["analysis_data"]["df"]
-                            pos = len(df[df["sentiment"] == "Positive"])
-                            neg = len(df[df["sentiment"] == "Negative"])
-                            neu = len(df[df["sentiment"] == "Neutral"])
-                            spam = len(df[df["is_spam"] == True])
-                            bot = f"Analysis: {len(df)} comments. Positive: {pos}, Negative: {neg}, Neutral: {neu}, Spam: {spam}. Configure Gemini for detailed insights."
-                        else:
-                            bot = "Analyze a video first for specific insights or configure Gemini API."
-                    st.session_state.chat_history.append({"role": "assistant", "content": bot})
-                except Exception:
-                    st.session_state.chat_history.append({"role": "assistant", "content": "Error processing request."})
-                st.rerun()
+                        bot = "Analyze a video first for specific insights or configure Gemini API."
+                st.session_state.chat_history.append({"role": "assistant", "content": bot})
+            except Exception:
+                st.session_state.chat_history.append({"role": "assistant", "content": "Error processing request."})
+            st.rerun()
 
     if st.button("🗑️ Clear Chat", use_container_width=True, key="clear_chat"):
         st.session_state.chat_history = []
         st.rerun()
     st.markdown('</div>', unsafe_allow_html=True)
+
 
 # ---------- Main ----------
 st.markdown('<h1 class="main-header">YouTube Comment Sentiment Analyzer</h1>', unsafe_allow_html=True)
@@ -317,18 +324,20 @@ def fetch_video_info(video_id):
             return None
         item = response["items"][0]
         thumbnails = item["snippet"].get("thumbnails", {})
-        thumb = (thumbnails.get("high") or thumbnails.get("medium") or thumbnails.get("default") or {}).get("url", "")
+        # prefer high, fallback to medium/default
+        thumb = (thumbnails.get("high") or thumbnails.get("medium") or thumbnails.get("default") or {}).get("url")
         return {
             "title": item["snippet"].get("title", "Untitled"),
             "channel": item["snippet"].get("channelTitle", "Unknown"),
             "thumbnail": thumb,
-            "views": int(item.get("statistics", {}).get("viewCount", 0)),
-            "likes": int(item.get("statistics", {}).get("likeCount", 0)),
+            "views": int(item.get("statistics", {}).get("viewCount", 0)) if item.get("statistics") else 0,
+            "likes": int(item.get("statistics", {}).get("likeCount", 0)) if item.get("statistics") else 0,
         }
     except Exception as e:
         return {"error": str(e)}
 
-# ---------- Analysis flow (fixed: run only after click) ----------
+
+# ---------- Analysis flow (run only after click) ----------
 if mode == "📊 Analysis":
     # Guard: only run real work when analyze button pressed and we have a video_input
     if 'analyze_btn' in locals() and analyze_btn and video_input:
@@ -339,16 +348,26 @@ if mode == "📊 Analysis":
             else:
                 video_info = fetch_video_info(video_id)
                 c1, c2 = st.columns([1, 2])
+
+                # SAFE thumbnail handling
+                thumb = None
+                if isinstance(video_info, dict) and "error" not in video_info:
+                    raw_thumb = video_info.get("thumbnail")
+                    if isinstance(raw_thumb, dict):
+                        thumb = raw_thumb.get("url")
+                    elif isinstance(raw_thumb, str) and raw_thumb.strip():
+                        thumb = raw_thumb.strip()
+
                 if video_info and isinstance(video_info, dict) and "error" not in video_info:
                     with c1:
-                        thumb = video_info.get("thumbnail", "")
-                        if thumb:
+                        if thumb and thumb.startswith("http"):
                             st.image(thumb, use_container_width=True)
+                        else:
+                            st.info("Thumbnail unavailable")
                     with c2:
                         st.subheader(video_info.get("title", "Untitled"))
                         st.caption(
-                            f"Channel: {video_info.get('channel','Unknown')} | "
-                            f"Views: {video_info.get('views',0):,} | 👍 {video_info.get('likes',0):,}"
+                            f"Channel: {video_info.get('channel','Unknown')} | Views: {video_info.get('views',0):,} | 👍 {video_info.get('likes',0):,}"
                         )
                 else:
                     st.info("ℹ️ Video info unavailable or private. Proceeding with comments analysis.")
@@ -423,6 +442,7 @@ if mode == "📊 Analysis":
         csv_bytes = df[['author', 'clean_text', 'sentiment', 'is_spam', 'likeCount', 'publishedAt']].to_csv(index=False)
         st.download_button("Download CSV", csv_bytes, f"youtube_analysis_{st.session_state['analysis_data']['video_id']}.csv", "text/csv", use_container_width=True)
 
+
 # ---------- Trending Videos ----------
 elif mode == "🔥 Trending Videos":
     st.subheader("Trending Videos")
@@ -442,15 +462,9 @@ elif mode == "🔥 Trending Videos":
                 cols = st.columns(2)
                 for idx, video in enumerate(videos):
                     with cols[idx % 2]:
-                        st.markdown(f"""<div class="trending-card">
-                            <img src="{video['thumbnail']}" width="100%" style="border-radius:8px">
-                            <h4>{video['title'][:60]}{'...' if len(video['title'])>60 else ''}</h4>
-                            <p>👁️ {video['views']:,} views | 👍 {video['likes']:,} likes</p>
-                            <a href="https://www.youtube.com/watch?v={video['video_id']}" target="_blank">
-                                <button style="width:100%;padding:8px;background:#FF0000;color:white;border:none;border-radius:4px;">Watch</button>
-                            </a></div>""", unsafe_allow_html=True)
-            except Exception:
-                st.error("Failed to load trending videos.")
+                        st.markdown(f"""<div class="trending-card">\n                            <img src="{video['thumbnail']}" width="100%" style="border-radius:8px">\n                            <h4>{video['title'][:60]}{'...' if len(video['title'])>60 else ''}</h4>\n                            <p>👁️ {video['views']:,} views | 👍 {video['likes']:,} likes</p>\n                            <a href="https://www.youtube.com/watch?v={video['video_id']}" target="_blank">\n                                <button style="width:100%;padding:8px;background:#FF0000;color:white;border:none;border-radius:4px;">Watch</button>\n                            </a></div>""", unsafe_allow_html=True)
+            except Exception as e:
+                st.error(f"Failed to load trending videos: {e}")
 
 st.markdown("---")
 st.markdown("<div style='text-align:center;color:#666;'>YouTube Comment Sentiment Analyzer • Powered by YouTube API & Gemini AI</div>", unsafe_allow_html=True)
