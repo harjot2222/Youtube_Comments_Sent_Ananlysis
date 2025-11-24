@@ -226,22 +226,51 @@ with st.sidebar:
 # Main Content
 st.markdown('<h1 class="main-header">YouTube Comment Sentiment Analyzer</h1>', unsafe_allow_html=True)
 
-if mode == "📊 Analysis":
-    if 'analyze_btn' in locals() and analyze_btn and video_input and YOUTUBE_API_KEY:
-        with st.spinner("🔄 Processing..."):
-            video_id = extract_video_id(video_input)
-            if video_id:
-                try:
-                    youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
-                    info = youtube.videos().list(part="snippet,statistics", id=video_id).execute()
-                    if info.get("items"):
-                        video_info = info["items"][0]
-                        c1, c2 = st.columns([1,2])
-                        with c1: st.image(video_info["snippet"]["thumbnails"]["medium"]["url"], use_container_width=True)
-                        with c2:
-                            st.subheader(video_info["snippet"]["title"])
-                            st.caption(f"Channel: {video_info['snippet']['channelTitle']} | Views: {int(video_info['statistics'].get('viewCount',0)):,}")
-                except: st.info("ℹ️ Video info unavailable")
+# ---------------------- FIXED VIDEO INFO BLOCK ---------------------- #
+
+def fetch_video_info(video_id):
+    """Safely fetch video metadata from YouTube API."""
+    try:
+        youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
+        response = youtube.videos().list(
+            part="snippet,statistics",
+            id=video_id
+        ).execute()
+
+        if not response.get("items"):
+            return None  # invalid or private video
+
+        item = response["items"][0]
+        return {
+            "title": item["snippet"]["title"],
+            "channel": item["snippet"]["channelTitle"],
+            "thumbnail": item["snippet"]["thumbnails"]["high"]["url"],
+            "views": int(item["statistics"].get("viewCount", 0)),
+            "likes": int(item["statistics"].get("likeCount", 0)),
+        }
+    except Exception as e:
+        return {"error": str(e)}
+
+
+# ---------------------- USE FIXED INFO BLOCK ---------------------- #
+video_info = fetch_video_info(video_id)
+
+c1, c2 = st.columns([1, 2])
+
+if video_info and "error" not in video_info:
+    with c1:
+        st.image(video_info["thumbnail"], use_container_width=True)
+
+    with c2:
+        st.subheader(video_info["title"])
+        st.caption(
+            f"Channel: {video_info['channel']} | "
+            f"Views: {video_info['views']:,} | 👍 {video_info['likes']:,}"
+        )
+
+else:
+    st.warning("ℹ️ Unable to load video info. Showing basic analysis only.")
+
                 
                 comments_data = get_comments(video_id, max_comments)
                 if comments_data:
@@ -322,3 +351,4 @@ elif mode == "🔥 Trending Videos":
 
 st.markdown("---")
 st.markdown("<div style='text-align:center;color:#666;'>YouTube Comment Sentiment Analyzer • Powered by YouTube API & Gemini AI</div>", unsafe_allow_html=True)
+
