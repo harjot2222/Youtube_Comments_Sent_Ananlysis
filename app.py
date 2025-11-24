@@ -270,10 +270,8 @@ if video_info and "error" not in video_info:
 
 else:
     st.warning("ℹ️ Unable to load video info. Showing basic analysis only.")
-
-                
-                comments_data = get_comments(video_id, max_comments)
-                if comments_data:
+    comments_data = get_comments(video_id, max_comments)
+    if comments_data:
                     df = pd.DataFrame(comments_data)
                     df["clean_text"] = df["text"].apply(clean_text)
                     df["sentiment"] = df["clean_text"].apply(enhanced_analyze_sentiment)
@@ -351,4 +349,5 @@ elif mode == "🔥 Trending Videos":
 
 st.markdown("---")
 st.markdown("<div style='text-align:center;color:#666;'>YouTube Comment Sentiment Analyzer • Powered by YouTube API & Gemini AI</div>", unsafe_allow_html=True)
+
 
