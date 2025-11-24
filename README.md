@@ -1,5 +1,5 @@
 <h1 align="center">🎥 YouTube Sentiment Analyzer</h1> <p align="center"> 🔍 <strong>Analyze YouTube video comments with AI-powered Sentiment Analysis, Visualizations, Summarization, and an Interactive CommentBot!</strong> </p> <p align="center"> <img src="https://img.shields.io/badge/Made%20With-Streamlit-%23ff4b4b" /> <img src="https://img.shields.io/badge/NLP-BERT-blue" /> <img src="https://img.shields.io/badge/LLM-LangChain%20+%20GROQ-yellow" /> <img src="https://img.shields.io/badge/License-MIT-green" /> </p>
-<h2>URL-> https://sentimentalharry.streamlit.app/</h2>
+<h2>URL-> (https://sentitoolyt.streamlit.app/)/</h2>
 ✨ Overview
 This professional-grade Streamlit web app fetches and analyzes comments from any YouTube video using BERT-based sentiment analysis, visual tools like bar charts and word clouds, and advanced LangChain + GROQ-powered LLMs to summarize and interact with viewer feedback.
 
