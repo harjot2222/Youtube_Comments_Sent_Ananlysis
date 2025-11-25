@@ -216,6 +216,34 @@ def summarize_with_gemini(df):
         return f"Error: {e}"
 
 
+# Safe image display function
+def safe_display_image(image_url, caption="", use_container_width=True):
+    """
+    Safely display an image with comprehensive error handling
+    """
+    try:
+        if not image_url:
+            st.info("📷 Thumbnail not available")
+            return False
+            
+        if isinstance(image_url, str) and image_url.startswith(('http://', 'https://')):
+            # It's a URL - try to display directly
+            try:
+                st.image(image_url, caption=caption, use_container_width=use_container_width)
+                return True
+            except Exception as url_error:
+                st.info("📷 Could not load thumbnail from URL")
+                return False
+        else:
+            # Invalid image data
+            st.info("📷 Thumbnail format not supported")
+            return False
+            
+    except Exception as e:
+        st.info("📷 Error displaying thumbnail")
+        return False
+
+
 # ---------- UI CSS ----------
 st.markdown("""<style>
 .main-header{font-size:2.5rem;font-weight:700;background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);-webkit-background-clip:text;-webkit-text-fill-color:transparent;text-align:center}
@@ -349,7 +377,7 @@ if mode == "📊 Analysis":
                 video_info = fetch_video_info(video_id)
                 c1, c2 = st.columns([1, 2])
 
-                # SAFE thumbnail handling
+                # SAFE thumbnail handling - FIXED VERSION
                 thumb = None
                 if isinstance(video_info, dict) and "error" not in video_info:
                     raw_thumb = video_info.get("thumbnail")
@@ -360,10 +388,8 @@ if mode == "📊 Analysis":
 
                 if video_info and isinstance(video_info, dict) and "error" not in video_info:
                     with c1:
-                        if thumb and thumb.startswith("http"):
-                            st.image(thumb, use_container_width=True)
-                        else:
-                            st.info("Thumbnail unavailable")
+                        # Use the safe display function instead of direct st.image
+                        safe_display_image(thumb, "Video Thumbnail")
                     with c2:
                         st.subheader(video_info.get("title", "Untitled"))
                         st.caption(
@@ -462,7 +488,15 @@ elif mode == "🔥 Trending Videos":
                 cols = st.columns(2)
                 for idx, video in enumerate(videos):
                     with cols[idx % 2]:
-                        st.markdown(f"""<div class="trending-card">\n                            <img src="{video['thumbnail']}" width="100%" style="border-radius:8px">\n                            <h4>{video['title'][:60]}{'...' if len(video['title'])>60 else ''}</h4>\n                            <p>👁️ {video['views']:,} views | 👍 {video['likes']:,} likes</p>\n                            <a href="https://www.youtube.com/watch?v={video['video_id']}" target="_blank">\n                                <button style="width:100%;padding:8px;background:#FF0000;color:white;border:none;border-radius:4px;">Watch</button>\n                            </a></div>""", unsafe_allow_html=True)
+                        # Use safe display for trending thumbnails too
+                        st.markdown(f"""<div class="trending-card">""", unsafe_allow_html=True)
+                        safe_display_image(video['thumbnail'], use_container_width=True)
+                        st.markdown(f"""
+                            <h4>{video['title'][:60]}{'...' if len(video['title'])>60 else ''}</h4>
+                            <p>👁️ {video['views']:,} views | 👍 {video['likes']:,} likes</p>
+                            <a href="https://www.youtube.com/watch?v={video['video_id']}" target="_blank">
+                                <button style="width:100%;padding:8px;background:#FF0000;color:white;border:none;border-radius:4px;">Watch</button>
+                            </a></div>""", unsafe_allow_html=True)
             except Exception as e:
                 st.error(f"Failed to load trending videos: {e}")
 
