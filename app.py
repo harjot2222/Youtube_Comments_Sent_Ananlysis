@@ -6,6 +6,8 @@ from urllib.parse import urlparse, parse_qs
 import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
+import matplotlib
+matplotlib.use('Agg')  # Set the backend to Agg to prevent GUI issues
 from wordcloud import WordCloud
 from dotenv import load_dotenv
 from googleapiclient.discovery import build
@@ -226,7 +228,7 @@ def safe_display_image(image_url, caption="", use_container_width=True):
     """
     try:
         if not image_url:
-            st.info("📷 Thumbnail not available")
+            st.markdown('<div class="thumbnail-placeholder">🎬<br>Thumbnail<br>Not Available</div>', unsafe_allow_html=True)
             return False
             
         if isinstance(image_url, str) and image_url.startswith(('http://', 'https://')):
@@ -243,18 +245,18 @@ def safe_display_image(image_url, caption="", use_container_width=True):
                         st.image(image, caption=caption, use_container_width=use_container_width)
                         return True
                     else:
-                        st.info("📷 Could not load thumbnail from URL")
+                        st.markdown('<div class="thumbnail-placeholder">📷<br>Thumbnail<br>Load Failed</div>', unsafe_allow_html=True)
                         return False
                 except Exception:
-                    st.info("📷 Thumbnail unavailable")
+                    st.markdown('<div class="thumbnail-placeholder">🎬<br>Thumbnail<br>Unavailable</div>', unsafe_allow_html=True)
                     return False
         else:
             # Invalid image data
-            st.info("📷 Thumbnail format not supported")
+            st.markdown('<div class="thumbnail-placeholder">🎬<br>Thumbnail<br>Not Available</div>', unsafe_allow_html=True)
             return False
             
     except Exception as e:
-        st.info("📷 Error displaying thumbnail")
+        st.markdown('<div class="thumbnail-placeholder">🎬<br>Thumbnail<br>Error</div>', unsafe_allow_html=True)
         return False
 
 
@@ -270,7 +272,9 @@ st.markdown("""<style>
 .welcome-message{text-align:center;color:#666;padding:2rem;background:#f8f9fa;border-radius:8px}
 .assistant-header{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;padding:1rem;border-radius:12px 12px 0 0}
 .chat-container{background:white;border-radius:0 0 12px 12px;padding:1rem;box-shadow:0 4px 15px rgba(0,0,0,0.1)}
-.thumbnail-placeholder{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);height:200px;display:flex;align-items:center;justify-content:center;border-radius:12px;color:white;font-size:1.2rem}
+.thumbnail-placeholder{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);height:200px;display:flex;align-items:center;justify-content:center;border-radius:12px;color:white;font-size:1.2rem;text-align:center;flex-direction:column;margin-bottom:1rem}
+.analysis-section{margin-top:2rem;padding:1rem;background:#f8f9fa;border-radius:12px}
+.stPlot{text-align:center}
 </style>""", unsafe_allow_html=True)
 
 
@@ -440,62 +444,119 @@ if mode == "📊 Analysis":
         neu = len(df[df["sentiment"] == "Neutral"])
         spam = len(df[df["is_spam"] == True])
 
+        st.markdown("---")
         st.subheader("📈 Analysis Results")
+        
+        # Create metrics in columns
         cols = st.columns(5)
-        metrics = [("Total Comments", total), ("Positive", pos), ("Negative", neg), ("Spam", spam)]
-        for i, (label, value) in enumerate(metrics):
-            with cols[i]:
-                st.markdown(f'<div class="metric-card">{label}<br><span style="font-size:2rem;">{value}</span></div>', unsafe_allow_html=True)
+        with cols[0]:
+            st.markdown(f'<div class="metric-card">Total Comments<br><span style="font-size:2rem;">{total}</span></div>', unsafe_allow_html=True)
+        with cols[1]:
+            st.markdown(f'<div class="metric-card">Positive<br><span style="font-size:2rem;">{pos}</span></div>', unsafe_allow_html=True)
+        with cols[2]:
+            st.markdown(f'<div class="metric-card">Negative<br><span style="font-size:2rem;">{neg}</span></div>', unsafe_allow_html=True)
+        with cols[3]:
+            st.markdown(f'<div class="metric-card">Spam<br><span style="font-size:2rem;">{spam}</span></div>', unsafe_allow_html=True)
         with cols[4]:
             st.markdown(f'<div class="accuracy-badge">ENSEMBLE ACCURACY<br><span style="font-size:2rem;">91.5%</span></div>', unsafe_allow_html=True)
 
+        # Visualizations
+        st.markdown("---")
+        st.subheader("📊 Visual Analytics")
         c1, c2 = st.columns(2)
+        
         with c1:
             st.subheader("Sentiment Distribution")
-            fig, ax = plt.subplots(figsize=(8, 6))
-            counts = df['sentiment'].value_counts()
-            labels = counts.index.tolist()
-            values = counts.values.tolist()
-            if values:
-                ax.pie(values, labels=labels, autopct='%1.1f%%', startangle=90)
-                ax.axis('equal')
-            st.pyplot(fig)
+            if total > 0:
+                fig, ax = plt.subplots(figsize=(8, 6))
+                sentiment_counts = [pos, neu, neg]
+                sentiment_labels = ['Positive', 'Neutral', 'Negative']
+                colors = ['#4CAF50', '#FFC107', '#F44336']
+                
+                # Filter out zero values for better visualization
+                non_zero_data = [(count, label, color) for count, label, color in zip(sentiment_counts, sentiment_labels, colors) if count > 0]
+                if non_zero_data:
+                    counts, labels, colors_filtered = zip(*non_zero_data)
+                    ax.pie(counts, labels=labels, colors=colors_filtered, autopct='%1.1f%%', startangle=90)
+                    ax.axis('equal')
+                    st.pyplot(fig)
+                else:
+                    st.info("No sentiment data to display")
+            else:
+                st.info("No comments to analyze")
+
         with c2:
             st.subheader("Spam vs Non-Spam")
-            fig, ax = plt.subplots(figsize=(8, 6))
-            counts = df['is_spam'].value_counts()
-            values = [counts.get(False, 0), counts.get(True, 0)]
-            ax.bar(['Non-Spam', 'Spam'], values, alpha=0.8, color=['#667eea', '#764ba2'])
-            ax.set_ylabel('Number of Comments')
-            st.pyplot(fig)
+            if total > 0:
+                fig, ax = plt.subplots(figsize=(8, 6))
+                spam_counts = [total - spam, spam]
+                spam_labels = ['Non-Spam', 'Spam']
+                colors = ['#667eea', '#764ba2']
+                
+                ax.bar(spam_labels, spam_counts, color=colors, alpha=0.8)
+                ax.set_ylabel('Number of Comments')
+                ax.set_title('Spam Detection Results')
+                
+                # Add value labels on bars
+                for i, v in enumerate(spam_counts):
+                    ax.text(i, v + 0.1, str(v), ha='center', va='bottom')
+                    
+                st.pyplot(fig)
+            else:
+                st.info("No comments to analyze")
 
-        st.subheader("Word Cloud - Non-Spam Comments")
-        wc = make_wordcloud(df[~df["is_spam"]]["clean_text"].tolist())
-        if wc:
-            fig, ax = plt.subplots(figsize=(12, 6))
-            ax.imshow(wc, interpolation='bilinear')
-            ax.axis('off')
-            st.pyplot(fig)
+        # Word Cloud
+        st.markdown("---")
+        st.subheader("🌐 Word Cloud - Non-Spam Comments")
+        if total > 0 and (total - spam) > 0:
+            wc = make_wordcloud(df[~df["is_spam"]]["clean_text"].tolist())
+            if wc:
+                fig, ax = plt.subplots(figsize=(12, 6))
+                ax.imshow(wc, interpolation='bilinear')
+                ax.axis('off')
+                ax.set_title('Most Frequent Words in Comments', fontsize=16)
+                st.pyplot(fig)
+            else:
+                st.info("Not enough text data to generate word cloud")
         else:
-            st.info("No sufficient text for word cloud.")
+            st.info("No non-spam comments available for word cloud")
 
+        # AI Summary
+        st.markdown("---")
         st.subheader("🤖 AI-Powered Summary")
         with st.spinner("Generating AI summary..."):
-            st.markdown(summarize_with_gemini(df))
+            summary = summarize_with_gemini(df)
+            st.markdown(summary)
 
-        st.subheader("Sample Comments by Sentiment")
-        for s in ["Positive", "Neutral", "Negative"]:
-            sentiment_count = len(df[df["sentiment"] == s])
-            with st.expander(f"{s} Comments ({sentiment_count})"):
+        # Sample Comments
+        st.markdown("---")
+        st.subheader("💬 Sample Comments by Sentiment")
+        
+        for sentiment in ["Positive", "Neutral", "Negative"]:
+            sentiment_count = len(df[df["sentiment"] == sentiment])
+            with st.expander(f"{sentiment} Comments ({sentiment_count})"):
                 if sentiment_count > 0:
-                    for _, comment in df[df['sentiment'] == s].head(10).iterrows():
-                        st.markdown(f"**{comment['author']}** (👍 {comment['likeCount']})\n> {comment['clean_text'][:200]}{'...' if len(comment['clean_text'])>200 else ''}")
+                    sample_comments = df[df['sentiment'] == sentiment].head(10)
+                    for _, comment in sample_comments.iterrows():
+                        with st.container():
+                            st.markdown(f"**{comment['author']}** (👍 {int(comment['likeCount'])})")
+                            st.markdown(f"> {comment['clean_text']}")
+                            st.markdown("---")
                 else:
-                    st.info(f"No {s.lower()} comments found.")
+                    st.info(f"No {sentiment.lower()} comments found")
 
+        # Export Data
+        st.markdown("---")
         st.subheader("📥 Export Data")
         csv_bytes = df[['author', 'clean_text', 'sentiment', 'is_spam', 'likeCount', 'publishedAt']].to_csv(index=False)
-        st.download_button("Download CSV", csv_bytes, f"youtube_analysis_{st.session_state['analysis_data']['video_id']}.csv", "text/csv", use_container_width=True)
+        st.download_button(
+            "Download CSV", 
+            csv_bytes, 
+            f"youtube_analysis_{st.session_state['analysis_data']['video_id']}.csv", 
+            "text/csv", 
+            use_container_width=True,
+            help="Download the complete analysis data as CSV"
+        )
 
 
 # ---------- Trending Videos ----------
@@ -503,7 +564,7 @@ elif mode == "🔥 Trending Videos":
     st.subheader("Trending Videos")
     region = st.selectbox("Region", ["US", "IN", "GB", "CA", "AU", "JP", "KR"])
     if st.button("Load Trending Videos", type="primary"):
-        with st.spinner("Loading..."):
+        with st.spinner("Loading trending videos..."):
             try:
                 youtube = build("youtube", "v3", developerKey=YOUTUBE_API_KEY)
                 trending = youtube.videos().list(part="snippet,statistics", chart="mostPopular", regionCode=region, maxResults=6).execute()
