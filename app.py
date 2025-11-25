@@ -221,7 +221,7 @@ def summarize_with_gemini(df):
         return f"Error: {e}"
 
 
-# Safe image display function
+# Improved thumbnail display function
 def safe_display_image(image_url, caption="", use_container_width=True):
     """
     Safely display an image with comprehensive error handling
@@ -231,30 +231,33 @@ def safe_display_image(image_url, caption="", use_container_width=True):
             st.markdown('<div class="thumbnail-placeholder">🎬<br>Thumbnail<br>Not Available</div>', unsafe_allow_html=True)
             return False
             
-        if isinstance(image_url, str) and image_url.startswith(('http://', 'https://')):
-            # It's a URL - try to display directly
-            try:
-                st.image(image_url, caption=caption, use_container_width=use_container_width)
-                return True
-            except Exception as url_error:
-                # Try alternative method - download and display
-                try:
-                    response = requests.get(image_url, timeout=10)
-                    if response.status_code == 200:
-                        image = Image.open(io.BytesIO(response.content))
-                        st.image(image, caption=caption, use_container_width=use_container_width)
-                        return True
-                    else:
-                        st.markdown('<div class="thumbnail-placeholder">📷<br>Thumbnail<br>Load Failed</div>', unsafe_allow_html=True)
-                        return False
-                except Exception:
-                    st.markdown('<div class="thumbnail-placeholder">🎬<br>Thumbnail<br>Unavailable</div>', unsafe_allow_html=True)
-                    return False
-        else:
-            # Invalid image data
-            st.markdown('<div class="thumbnail-placeholder">🎬<br>Thumbnail<br>Not Available</div>', unsafe_allow_html=True)
+        # Validate URL format
+        if not isinstance(image_url, str) or not image_url.startswith(('http://', 'https://')):
+            st.markdown('<div class="thumbnail-placeholder">🎬<br>Thumbnail<br>Invalid URL</div>', unsafe_allow_html=True)
             return False
             
+        # Try to display directly first (most efficient)
+        try:
+            st.image(image_url, caption=caption, use_container_width=use_container_width)
+            return True
+        except Exception as direct_error:
+            # Fallback: download and display
+            try:
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
+                }
+                response = requests.get(image_url, headers=headers, timeout=10)
+                if response.status_code == 200:
+                    image = Image.open(io.BytesIO(response.content))
+                    st.image(image, caption=caption, use_container_width=use_container_width)
+                    return True
+                else:
+                    st.markdown(f'<div class="thumbnail-placeholder">📷<br>Thumbnail<br>Failed to load<br>(HTTP {response.status_code})</div>', unsafe_allow_html=True)
+                    return False
+            except Exception as download_error:
+                st.markdown('<div class="thumbnail-placeholder">🎬<br>Thumbnail<br>Load Error</div>', unsafe_allow_html=True)
+                return False
+                
     except Exception as e:
         st.markdown('<div class="thumbnail-placeholder">🎬<br>Thumbnail<br>Error</div>', unsafe_allow_html=True)
         return False
@@ -408,11 +411,12 @@ if mode == "📊 Analysis":
                 video_info = fetch_video_info(video_id)
                 c1, c2 = st.columns([1, 2])
 
-                # SAFE thumbnail handling - FIXED VERSION
+                # FIXED thumbnail handling
                 if video_info and isinstance(video_info, dict) and "error" not in video_info:
                     with c1:
                         thumb = video_info.get("thumbnail")
                         if thumb:
+                            # Use the improved safe_display_image function
                             safe_display_image(thumb, "Video Thumbnail")
                         else:
                             st.markdown('<div class="thumbnail-placeholder">🎬<br>Thumbnail<br>Not Available</div>', unsafe_allow_html=True)
@@ -580,7 +584,7 @@ elif mode == "🔥 Trending Videos":
                 for idx, video in enumerate(videos):
                     with cols[idx % 2]:
                         st.markdown(f"""<div class="trending-card">""", unsafe_allow_html=True)
-                        # Safe thumbnail display for trending videos
+                        # Use the improved safe_display_image function for trending videos
                         if video['thumbnail']:
                             safe_display_image(video['thumbnail'], use_container_width=True)
                         else:
