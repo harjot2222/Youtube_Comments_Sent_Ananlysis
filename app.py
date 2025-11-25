@@ -584,3 +584,4 @@ st.markdown(
     "<div style='text-align:center;color:#666;'>YouTube Comment Sentiment Analyzer • Powered by YouTube API & Gemini AI</div>",
     unsafe_allow_html=True
 )
+
