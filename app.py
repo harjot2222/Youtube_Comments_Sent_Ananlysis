@@ -14,6 +14,9 @@ import nltk
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 import torch
+import requests
+from PIL import Image
+import io
 
 # Optional Gemini import (safe fallback if not installed)
 try:
@@ -232,8 +235,19 @@ def safe_display_image(image_url, caption="", use_container_width=True):
                 st.image(image_url, caption=caption, use_container_width=use_container_width)
                 return True
             except Exception as url_error:
-                st.info("📷 Could not load thumbnail from URL")
-                return False
+                # Try alternative method - download and display
+                try:
+                    response = requests.get(image_url, timeout=10)
+                    if response.status_code == 200:
+                        image = Image.open(io.BytesIO(response.content))
+                        st.image(image, caption=caption, use_container_width=use_container_width)
+                        return True
+                    else:
+                        st.info("📷 Could not load thumbnail from URL")
+                        return False
+                except Exception:
+                    st.info("📷 Thumbnail unavailable")
+                    return False
         else:
             # Invalid image data
             st.info("📷 Thumbnail format not supported")
@@ -256,6 +270,7 @@ st.markdown("""<style>
 .welcome-message{text-align:center;color:#666;padding:2rem;background:#f8f9fa;border-radius:8px}
 .assistant-header{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);color:white;padding:1rem;border-radius:12px 12px 0 0}
 .chat-container{background:white;border-radius:0 0 12px 12px;padding:1rem;box-shadow:0 4px 15px rgba(0,0,0,0.1)}
+.thumbnail-placeholder{background:linear-gradient(135deg,#667eea 0%,#764ba2 100%);height:200px;display:flex;align-items:center;justify-content:center;border-radius:12px;color:white;font-size:1.2rem}
 </style>""", unsafe_allow_html=True)
 
 
@@ -269,7 +284,12 @@ if "analysis_data" not in st.session_state:
 # ---------- Sidebar ----------
 with st.sidebar:
     st.markdown('<div class="sidebar-content">', unsafe_allow_html=True)
-    st.image("https://cdn-icons-png.flaticon.com/512/1384/1384060.png", width=80)
+    # Safe sidebar image
+    try:
+        st.image("https://cdn-icons-png.flaticon.com/512/1384/1384060.png", width=80)
+    except:
+        st.markdown('<div style="text-align:center;font-size:3rem;">🎬</div>', unsafe_allow_html=True)
+    
     st.title("YouTube Analyzer")
     st.markdown("---")
     mode = st.radio("Navigation", ["📊 Analysis", "🔥 Trending Videos"]) 
@@ -352,8 +372,15 @@ def fetch_video_info(video_id):
             return None
         item = response["items"][0]
         thumbnails = item["snippet"].get("thumbnails", {})
-        # prefer high, fallback to medium/default
-        thumb = (thumbnails.get("high") or thumbnails.get("medium") or thumbnails.get("default") or {}).get("url")
+        # Get the highest quality thumbnail available
+        for quality in ["maxres", "standard", "high", "medium", "default"]:
+            if quality in thumbnails:
+                thumb = thumbnails[quality].get("url")
+                if thumb:
+                    break
+        else:
+            thumb = None
+            
         return {
             "title": item["snippet"].get("title", "Untitled"),
             "channel": item["snippet"].get("channelTitle", "Unknown"),
@@ -378,18 +405,13 @@ if mode == "📊 Analysis":
                 c1, c2 = st.columns([1, 2])
 
                 # SAFE thumbnail handling - FIXED VERSION
-                thumb = None
-                if isinstance(video_info, dict) and "error" not in video_info:
-                    raw_thumb = video_info.get("thumbnail")
-                    if isinstance(raw_thumb, dict):
-                        thumb = raw_thumb.get("url")
-                    elif isinstance(raw_thumb, str) and raw_thumb.strip():
-                        thumb = raw_thumb.strip()
-
                 if video_info and isinstance(video_info, dict) and "error" not in video_info:
                     with c1:
-                        # Use the safe display function instead of direct st.image
-                        safe_display_image(thumb, "Video Thumbnail")
+                        thumb = video_info.get("thumbnail")
+                        if thumb:
+                            safe_display_image(thumb, "Video Thumbnail")
+                        else:
+                            st.markdown('<div class="thumbnail-placeholder">🎬<br>Thumbnail<br>Not Available</div>', unsafe_allow_html=True)
                     with c2:
                         st.subheader(video_info.get("title", "Untitled"))
                         st.caption(
@@ -435,14 +457,16 @@ if mode == "📊 Analysis":
             labels = counts.index.tolist()
             values = counts.values.tolist()
             if values:
-                ax.pie(values, labels=labels, autopct='%1.1f%%')
+                ax.pie(values, labels=labels, autopct='%1.1f%%', startangle=90)
+                ax.axis('equal')
             st.pyplot(fig)
         with c2:
             st.subheader("Spam vs Non-Spam")
             fig, ax = plt.subplots(figsize=(8, 6))
             counts = df['is_spam'].value_counts()
             values = [counts.get(False, 0), counts.get(True, 0)]
-            ax.bar(['Non-Spam', 'Spam'], values, alpha=0.8)
+            ax.bar(['Non-Spam', 'Spam'], values, alpha=0.8, color=['#667eea', '#764ba2'])
+            ax.set_ylabel('Number of Comments')
             st.pyplot(fig)
 
         st.subheader("Word Cloud - Non-Spam Comments")
@@ -456,13 +480,18 @@ if mode == "📊 Analysis":
             st.info("No sufficient text for word cloud.")
 
         st.subheader("🤖 AI-Powered Summary")
-        st.markdown(summarize_with_gemini(df))
+        with st.spinner("Generating AI summary..."):
+            st.markdown(summarize_with_gemini(df))
 
         st.subheader("Sample Comments by Sentiment")
         for s in ["Positive", "Neutral", "Negative"]:
-            with st.expander(f"{s} Comments ({len(df[df['sentiment'] == s])})"):
-                for _, comment in df[df['sentiment'] == s].head(10).iterrows():
-                    st.markdown(f"**{comment['author']}** (👍 {comment['likeCount']})\n> {comment['clean_text'][:200]}{'...' if len(comment['clean_text'])>200 else ''}")
+            sentiment_count = len(df[df["sentiment"] == s])
+            with st.expander(f"{s} Comments ({sentiment_count})"):
+                if sentiment_count > 0:
+                    for _, comment in df[df['sentiment'] == s].head(10).iterrows():
+                        st.markdown(f"**{comment['author']}** (👍 {comment['likeCount']})\n> {comment['clean_text'][:200]}{'...' if len(comment['clean_text'])>200 else ''}")
+                else:
+                    st.info(f"No {s.lower()} comments found.")
 
         st.subheader("📥 Export Data")
         csv_bytes = df[['author', 'clean_text', 'sentiment', 'is_spam', 'likeCount', 'publishedAt']].to_csv(index=False)
@@ -485,12 +514,17 @@ elif mode == "🔥 Trending Videos":
                     "views": int(item["statistics"].get("viewCount", 0)),
                     "likes": int(item["statistics"].get("likeCount", 0))
                 } for item in trending.get("items", [])]
+                
                 cols = st.columns(2)
                 for idx, video in enumerate(videos):
                     with cols[idx % 2]:
-                        # Use safe display for trending thumbnails too
                         st.markdown(f"""<div class="trending-card">""", unsafe_allow_html=True)
-                        safe_display_image(video['thumbnail'], use_container_width=True)
+                        # Safe thumbnail display for trending videos
+                        if video['thumbnail']:
+                            safe_display_image(video['thumbnail'], use_container_width=True)
+                        else:
+                            st.markdown('<div class="thumbnail-placeholder">🎬<br>No Thumbnail</div>', unsafe_allow_html=True)
+                        
                         st.markdown(f"""
                             <h4>{video['title'][:60]}{'...' if len(video['title'])>60 else ''}</h4>
                             <p>👁️ {video['views']:,} views | 👍 {video['likes']:,} likes</p>
